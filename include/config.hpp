@@ -11,6 +11,7 @@
 
 // C++ System-Headers
 #include <cstddef>
+#include <fstream>
 #include <string>
 // Project Headers
 
@@ -23,30 +24,30 @@ namespace llama2 {
  */
 class Config {
 public:
-  Config(const std::string &config_file);
+  Config(std::ifstream &config_file); ///< Constructor
 
-  size_t Dim() const;        ///< Get the dimension of the Transformer
-  size_t HiddenDim() const;  ///< Get the dimension of the FeedForward hidden
-                             ///< layer (FFN) in the Transformer
-  size_t NumLayers() const;  ///< Get the number of layers in the Transformer
-  size_t NumHeads() const;   ///< Get the number of attention heads in the
-                             ///< Transformer
-  size_t NumKVHeads() const; ///< Get the number of attention heads for key and
-                             ///< value in the Transformer
-  size_t VocabSize() const;  ///< Get the size of the vocabulary
-  size_t SeqLen() const;     ///< Get the maximum sequence length
+  int32_t Dim() const;        ///< Get the dimension of the Transformer
+  int32_t HiddenDim() const;  ///< Get the dimension of the FeedForward hidden
+                              ///< layer (FFN) in the Transformer
+  int32_t NumLayers() const;  ///< Get the number of layers in the Transformer
+  int32_t NumHeads() const;   ///< Get the number of attention heads in the
+                              ///< Transformer
+  int32_t NumKVHeads() const; ///< Get the number of attention heads for key
+                              ///< and value in the Transformer
+  int32_t VocabSize() const;  ///< Get the size of the vocabulary
+  int32_t SeqLen() const;     ///< Get the maximum sequence length
 
 private:
-  void load_config(const std::string &config_file);
-  size_t kDim;        ///< Transformer dimension
-  size_t kHiddenDim;  ///< Dimension of the FeedForward hidden layer (FFN)
-                      ///< in the Transformer
-  size_t kNumLayers;  ///< Number of layers in the Transformer
-  size_t kNumHeads;   ///< Number of attention heads in the Transformer
-  size_t kNumKVHeads; ///< Number of attention heads for key and value in
-                      ///< the Transformer (Can be less than kNumHeads
-                      ///< because of multi-query attention)
-  size_t kVocabSize;  ///< Size of the vocabulary
-  size_t kSeqLen;     ///< Maximum sequence length
+  void load_config(std::ifstream &config_file);
+  int32_t kDim;        ///< Transformer dimension
+  int32_t kHiddenDim;  ///< Dimension of the FeedForward hidden layer (FFN)
+                       ///< in the Transformer
+  int32_t kNumLayers;  ///< Number of layers in the Transformer
+  int32_t kNumHeads;   ///< Number of attention heads in the Transformer
+  int32_t kNumKVHeads; ///< Number of attention heads for key and value in
+                       ///< the Transformer (Can be less than kNumHeads
+                       ///< because of multi-query attention)
+  int32_t kVocabSize;  ///< Size of the vocabulary
+  int32_t kSeqLen;     ///< Maximum sequence length
 };
 } // namespace llama2

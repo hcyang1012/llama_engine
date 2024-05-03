@@ -7,6 +7,7 @@ enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 set(SOURCES 
     src/config.cpp
+    src/transformer.cpp
     src/weights.cpp
     main.cpp
 )

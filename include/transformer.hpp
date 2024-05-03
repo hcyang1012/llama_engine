@@ -8,6 +8,8 @@
 #pragma once
 
 // C System-Headers
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 // C++ System-Headers
@@ -26,17 +28,48 @@ namespace llama2 {
 
 template <typename T> class Transformer {
 public:
-  Transformer(const std::string &config_file, const std::string &chkpt_file)
-      : config_(std::make_unique<Config>(config_file)),
-        run_state_(std::make_unique<RunState<T>>()),
-        weights_(
-            std::make_unique<TransformerWeights<T>>(*config_, chkpt_file)) {}
+  Transformer(const std::string &ckpt_file) { load_checkpoint(ckpt_file); }
   ~Transformer() {}
 
 private:
-  std::unique_ptr<Config> config_;
-  std::unique_ptr<RunState<T>> run_state_;
-  std::unique_ptr<TransformerWeights<T>> weights_;
+  void load_checkpoint(const std::string &ckpt_file) {
+    // Load the configuration file
+    std::ifstream if_chkpt_file(ckpt_file, std::ios::binary);
+    if (!if_chkpt_file.is_open()) {
+      throw std::runtime_error("Failed to open the checkpoint file.");
+    }
+
+    // Load the configuration
+    config_ = std::make_unique<Config>(if_chkpt_file);
+
+    // Load the weights
+    if_chkpt_file.seekg(0, std::ios::end);
+    file_size_ = if_chkpt_file.tellg();
+    const auto kCurrentPos = if_chkpt_file.tellg();
+    if_chkpt_file.close();
+
+    fd_ = open(ckpt_file.c_str(), O_RDONLY);
+    if (fd_ == -1) {
+      throw std::runtime_error("Failed to open the checkpoint file.");
+    }
+
+    mapped_file_ = static_cast<T *>(
+        mmap(nullptr, file_size_, PROT_READ, MAP_PRIVATE, fd_, 0));
+
+    if (mapped_file_ == MAP_FAILED) {
+      throw std::runtime_error("Failed to map the checkpoint file.");
+    }
+
+    T *weights_ptr = mapped_file_ + kCurrentPos;
+  }
+
+  void load_weights(T *weights_ptr) {
+    weights_ = std::make_unique<TransformerWeights<T>>(*config_, weights_ptr);
+  }
+  std::unique_ptr<Config> config_; ///< Hyperparameters of the Transformer
+  std::unique_ptr<TransformerWeights<T>>
+      weights_;                            ///< Weights of the Transformer
+  std::unique_ptr<RunState<T>> run_state_; ///< Run state of the Transformer
 
   int fd_;            // file descriptor for the memory mapped file
   ssize_t file_size_; // size of the memory mapped file

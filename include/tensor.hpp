@@ -51,9 +51,9 @@ public:
   size_t GetSize() const { return kSize; }
 
 private:
-  const std::vector<size_t> dims;
-  const size_t kRank;
-  const size_t kSize;
+  const std::vector<size_t> dims = {};
+  const size_t kRank = 0;
+  const size_t kSize = 0;
 
   size_t calc_size() const {
     size_t size = 1;
@@ -70,16 +70,32 @@ template <typename T> class Tensor {
 public:
   /// @brief Constructor
   /// @param shape Shape of the tensor
-  Tensor(const Shape &shape) : shape(shape), data(shape.GetSize()) {}
+  Tensor(const Shape &shape)
+      : data(new T[shape.GetSize()]), kDataBytes(sizeof(T) * shape.GetSize()),
+        kIsOwner(true), shape(shape) {}
+  Tensor(const T *data, const Shape &shape)
+      : data(const_cast<T *>(data)), kDataBytes(sizeof(T) * shape.GetSize()),
+        kIsOwner(false), shape(shape) {}
+  Tensor(const T *data, const size_t data_bytes)
+      : data(const_cast<T *>(data)), kDataBytes(data_bytes), kIsOwner(false) {}
+
+  /// @brief Destructor
+  ~Tensor() {
+    if (kIsOwner) {
+      delete[] data;
+    }
+  }
 
   /// @brief Get the data at the index
   /// @param index Index of the data
   /// @return Data at the index
-  T &operator[](const std::vector<size_t> &indices) {}
-
-  /// @brief Get the data at the index
-  /// @param indices Indices of the data. The last index is the innermost
-  /// @return Data at the index
+  T &operator[](const std::vector<size_t> &indices) {
+    size_t index = 0;
+    for (size_t i = 0; i < indices.size(); i++) {
+      index = index * shape[i] + indices[i];
+    }
+    return data[index];
+  }
   const T &operator[](const std::vector<size_t> &indices) const {
     size_t index = 0;
     for (size_t i = 0; i < indices.size(); i++) {
@@ -90,8 +106,20 @@ public:
 
   const Shape &GetShape() const { return shape; }
 
+  void SetShape(const Shape &shape) {
+    if (shape.GetSize() != kDataBytes / sizeof(T)) {
+      throw std::invalid_argument("Size of the shape does not match the data");
+    }
+    this->shape = shape;
+  }
+
+  const T *GetData() const { return data; }
+  const size_t GetDataBytes() const { return kDataBytes; }
+
 private:
-  std::vector<T> data;
+  T *data;
+  const size_t kDataBytes;
+  const bool kIsOwner;
   Shape shape;
   const std::string kDataType = typeid(T).name();
 };
