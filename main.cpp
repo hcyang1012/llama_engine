@@ -23,15 +23,15 @@ int main(int argc, char *argv[]) {
   std::string checkpoint_path;
   std::string tokenizer_path("tokenizer.bin");
   float temperature =
-      1.0f; // 0.0 = greedy deterministic. 1.0 = original. don't set higher
+      1.0f;  // 0.0 = greedy deterministic. 1.0 = original. don't set higher
   float topp =
-      0.9f; // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-  int steps = 256;                 // number of steps to run for
-  char *prompt = NULL;             // prompt string
-  unsigned long long rng_seed = 0; // seed rng with time by default
-  std::string mode("generate");    // mode to run in
+      0.9f;  // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
+  int steps = 256;                  // number of steps to run for
+  char *prompt = NULL;              // prompt string
+  unsigned long long rng_seed = 0;  // seed rng with time by default
+  std::string mode("generate");     // mode to run in
   char *system_prompt =
-      NULL; // the (optional) system prompt to use in chat mode
+      NULL;  // the (optional) system prompt to use in chat mode
 
   // poor man's C argparse so we can override the defaults above from the
   // command line
@@ -44,13 +44,13 @@ int main(int argc, char *argv[]) {
     // do some basic validation
     if (i + 1 >= argc) {
       error_usage(argv[0]);
-    } // must have arg after flag
+    }  // must have arg after flag
     if (argv[i][0] != '-') {
       error_usage(argv[0]);
-    } // must start with dash
+    }  // must start with dash
     if (strlen(argv[i]) != 2) {
       error_usage(argv[0]);
-    } // must be -x (one dash, one letter)
+    }  // must be -x (one dash, one letter)
     // read in the args
     if (argv[i][1] == 't') {
       temperature = atof(argv[i + 1]);
@@ -72,16 +72,18 @@ int main(int argc, char *argv[]) {
   }
 
   // parameter validation/overrides
-  if (rng_seed <= 0)
-    rng_seed = (unsigned int)time(NULL);
-  if (temperature < 0.0)
-    temperature = 0.0;
-  if (topp < 0.0 || 1.0 < topp)
-    topp = 0.9;
-  if (steps < 0)
-    steps = 0;
+  if (rng_seed <= 0) rng_seed = (unsigned int)time(NULL);
+  if (temperature < 0.0) temperature = 0.0;
+  if (topp < 0.0 || 1.0 < topp) topp = 0.9;
+  if (steps < 0) steps = 0;
 
   // build the Transformer via the model .bin file
   llama2::Transformer<float> transformer(checkpoint_path);
-  return 0;
+  if (steps == 0) {
+    steps = transformer.GetConfig().SeqLen();
+  }
+
+  steps = std::min(steps, transformer.GetConfig().SeqLen());
+
+    return 0;
 }

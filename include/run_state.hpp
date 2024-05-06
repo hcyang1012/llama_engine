@@ -12,29 +12,43 @@
 // C++ System-Headers
 #include <memory>
 // Project Headers
+#include <config.hpp>
 #include <tensor.hpp>
 
 // Third-party Headers
 
 namespace llama2 {
 
-template <typename T> class RunState {
-public:
-  RunState() = default;
+template <typename T>
+class RunState {
+ public:
+  RunState(const Config& config) {
+    size_t kKVDims = (config.Dim() * config.NumKVHeads()) / config.NumHeads();
+    x = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.Dim())});
+    xb = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.Dim())});
+    xb2 = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.Dim())});
+    hb = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.HiddenDim())});
+    hb2 = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.HiddenDim())});
+    q = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.Dim())});
+    key_cache = std::make_shared<Tensor<T>>(std::vector<size_t>{
+        static_cast<size_t>(config.NumLayers(), config.SeqLen(), kKVDims)});
+    value_cache = std::make_shared<Tensor<T>>(std::vector<size_t>{
+        static_cast<size_t>(config.NumLayers(), config.SeqLen(), kKVDims)});
+    att = std::make_shared<Tensor<T>>(std::vector<size_t>{
+        static_cast<size_t>(config.NumHeads(), config.SeqLen())});
+    logits = std::make_shared<Tensor<T>>(
+        std::vector<size_t>{static_cast<size_t>(config.VocabSize())});
 
-  void SetX(std::shared_ptr<Tensor<T>> tensor) { x = tensor; }
-  void SetXB(std::shared_ptr<Tensor<T>> tensor) { xb = tensor; }
-  void SetXB2(std::shared_ptr<Tensor<T>> tensor) { xb2 = tensor; }
-  void SetHB(std::shared_ptr<Tensor<T>> tensor) { hb = tensor; }
-  void SetHB2(std::shared_ptr<Tensor<T>> tensor) { hb2 = tensor; }
-  void SetQ(std::shared_ptr<Tensor<T>> tensor) { q = tensor; }
-  void SetK(std::shared_ptr<Tensor<T>> tensor) { k = tensor; }
-  void SetV(std::shared_ptr<Tensor<T>> tensor) { v = tensor; }
-  void SetAtt(std::shared_ptr<Tensor<T>> tensor) { att = tensor; }
-  void SetLogits(std::shared_ptr<Tensor<T>> tensor) { logits = tensor; }
-  void SetKeyCache(std::shared_ptr<Tensor<T>> tensor) { key_cache = tensor; }
-  void SetValueCache(std::shared_ptr<Tensor<T>> tensor) {
-    value_cache = tensor;
+    if (!x || !xb || !xb2 || !hb || !hb2 || !q || !key_cache || !value_cache ||
+        !att || !logits) {
+      throw std::runtime_error("Failed to allocate memory for RunState.");
+    }
   }
 
   std::shared_ptr<Tensor<T>> X() { return x; }
@@ -50,24 +64,24 @@ public:
   std::shared_ptr<Tensor<T>> KeyCache() { return key_cache; }
   std::shared_ptr<Tensor<T>> ValueCache() { return value_cache; }
 
-private:
-  std::shared_ptr<Tensor<T>> x;  ///< activation at current time stamp (dim,)
-  std::shared_ptr<Tensor<T>> xb; ///< same, but inside a residual branch (dim,)
+ private:
+  std::shared_ptr<Tensor<T>> x;   ///< activation at current time stamp (dim,)
+  std::shared_ptr<Tensor<T>> xb;  ///< same, but inside a residual branch (dim,)
   std::shared_ptr<Tensor<T>>
-      xb2; ///< an additional buffer just for convenience (dim,)
+      xb2;  ///< an additional buffer just for convenience (dim,)
   std::shared_ptr<Tensor<T>>
-      hb; ///< buffer for hidden dimension in the ffn (hidden_dim,)
+      hb;  ///< buffer for hidden dimension in the ffn (hidden_dim,)
   std::shared_ptr<Tensor<T>>
-      hb2; ///< buffer for hidden dimension in the ffn (hidden_dim,)
-  std::shared_ptr<Tensor<T>> q; ///< query (dim,)
-  std::shared_ptr<Tensor<T>> k; ///< key (dim,)
-  std::shared_ptr<Tensor<T>> v; ///< value (dim,)
+      hb2;  ///< buffer for hidden dimension in the ffn (hidden_dim,)
+  std::shared_ptr<Tensor<T>> q;  ///< query (dim,)
+  std::shared_ptr<Tensor<T>> k;  ///< key (dim,)
+  std::shared_ptr<Tensor<T>> v;  ///< value (dim,)
   std::shared_ptr<Tensor<T>>
-      att; ///< buffer for scores/attention values (n_heads, seq_len)
-  std::shared_ptr<Tensor<T>> logits; ///< output logits
+      att;  ///< buffer for scores/attention values (n_heads, seq_len)
+  std::shared_ptr<Tensor<T>> logits;  ///< output logits
   ///< kv cache
-  std::shared_ptr<Tensor<T>> key_cache;   ///< (layer, seq_len, dim)
-  std::shared_ptr<Tensor<T>> value_cache; ///< (layer, seq_len, dim)
+  std::shared_ptr<Tensor<T>> key_cache;    ///< (layer, seq_len, dim)
+  std::shared_ptr<Tensor<T>> value_cache;  ///< (layer, seq_len, dim)
 };
 
-} // namespace llama2
+}  // namespace llama2

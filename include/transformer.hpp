@@ -26,12 +26,15 @@
 
 namespace llama2 {
 
-template <typename T> class Transformer {
-public:
+template <typename T>
+class Transformer {
+ public:
   Transformer(const std::string &ckpt_file) { load_checkpoint(ckpt_file); }
   ~Transformer() {}
 
-private:
+  const auto &GetConfig() const { return *config_; }
+
+ private:
   void load_checkpoint(const std::string &ckpt_file) {
     // Load the configuration file
     std::ifstream if_chkpt_file(ckpt_file, std::ios::binary);
@@ -61,19 +64,22 @@ private:
     }
 
     T *weights_ptr = mapped_file_ + kCurrentPos;
+
+    load_weights(weights_ptr);
+    run_state_ = std::make_unique<RunState<T>>(*config_);
   }
 
   void load_weights(T *weights_ptr) {
     weights_ = std::make_unique<TransformerWeights<T>>(*config_, weights_ptr);
   }
-  std::unique_ptr<Config> config_; ///< Hyperparameters of the Transformer
+  std::unique_ptr<Config> config_;  ///< Hyperparameters of the Transformer
   std::unique_ptr<TransformerWeights<T>>
-      weights_;                            ///< Weights of the Transformer
-  std::unique_ptr<RunState<T>> run_state_; ///< Run state of the Transformer
+      weights_;                             ///< Weights of the Transformer
+  std::unique_ptr<RunState<T>> run_state_;  ///< Run state of the Transformer
 
-  int fd_;            // file descriptor for the memory mapped file
-  ssize_t file_size_; // size of the memory mapped file
-  T *mapped_file_;    // pointer to the memory mapped file
+  int fd_;             // file descriptor for the memory mapped file
+  ssize_t file_size_;  // size of the memory mapped file
+  T *mapped_file_;     // pointer to the memory mapped file
 };
 
-} // namespace llama2
+}  // namespace llama2
