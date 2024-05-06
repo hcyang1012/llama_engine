@@ -7,8 +7,6 @@
 #include <iostream>
 
 // Project Headers
-#include <run_state.hpp>
-#include <tokenizer.hpp>
 #include <transformer.hpp>
 
 // Third-party Headers
@@ -106,5 +104,16 @@ int main(int argc, char *argv[]) {
   llama2::Tokenizer<float> tokenizer(tokenizer_path,
                                      transformer.GetConfig().VocabSize());
 
+  llama2::Sampler sampler(transformer.GetConfig().VocabSize(), temperature,
+                          topp, rng_seed);
+
+  if (mode == "generate") {
+    transformer.Generate(tokenizer, sampler, prompt, steps);
+  } else if (mode == "chat") {
+    // transformer.Chat(tokenizer, sampler, steps, prompt, system_prompt);
+  } else {
+    std::cerr << "Unknown mode: " << mode << std::endl;
+    error_usage(argv[0]);
+  }
   return 0;
 }

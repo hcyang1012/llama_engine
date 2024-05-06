@@ -2,7 +2,7 @@
  * @file tokenizer.hpp
  * @brief Header for the Tokenizer class.
  * @author Heecheol Yang (heecheol.yang@outlook.com)
- * @date 2024-05-03
+ * @date 2024-05-07
  */
 
 #pragma once
