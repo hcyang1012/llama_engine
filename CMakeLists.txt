@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(llama2_cpp_dummy VERSION 0.1.0 LANGUAGES C CXX)
 
+include(FetchContent)
+FetchContent_Declare(
+    glog
+    GIT_REPOSITORY git@github.com:google/glog.git
+    GIT_TAG v0.4.0
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/download_deps/glog
+)
+FetchContent_MakeAvailable(glog)
+
 
 set(CMAKE_CXX_STANDARD 17)
 set(LLAMA2_LIB_SOURCES 

@@ -20,15 +20,15 @@
 
 namespace llama2 {
 
-constexpr int MAX_DIM = 4; ///< Maximum number of dimensions
+constexpr int MAX_DIM = 4;  ///< Maximum number of dimensions
 
 /// @brief Shape class for tensor
 class Shape {
-public:
+ public:
   /// @brief Constructor
-  /// @param dims Dimensions of the tensor. The last dimension is the innermost
-  /// @throw std::invalid_argument if the number of dimensions exceeds MAX_DIM
-  Shape(const std::vector<size_t> &dims)
+  /// @param dims Dimensions of the tensor
+
+  Shape(const std::initializer_list<size_t> &dims)
       : dims(dims), kRank(dims.size()), kSize(calc_size()) {
     if (dims.size() > MAX_DIM) {
       throw std::invalid_argument("Number of dimensions(" +
@@ -50,7 +50,7 @@ public:
   /// @return Size of shape
   size_t GetSize() const { return kSize; }
 
-private:
+ private:
   const std::vector<size_t> dims = {};
   const size_t kRank = 0;
   const size_t kSize = 0;
@@ -66,17 +66,22 @@ private:
 
 /// @brief Tensor class
 /// @tparam T Data type of the tensor
-template <typename T> class Tensor {
-public:
+template <typename T>
+class Tensor {
+ public:
   /// @brief Constructor
   /// @param shape Shape of the tensor
-  Tensor(const Shape &shape)
-      : data(new T[shape.GetSize()]), kDataBytes(sizeof(T) * shape.GetSize()),
-        kIsOwner(true), shape(shape) {}
-  Tensor(const T *data, const Shape &shape)
-      : data(const_cast<T *>(data)), kDataBytes(sizeof(T) * shape.GetSize()),
-        kIsOwner(false), shape(shape) {}
-  Tensor(const T *data, const size_t data_bytes)
+  explicit Tensor(const Shape &shape)
+      : data(new T[shape.GetSize()]),
+        kDataBytes(sizeof(T) * shape.GetSize()),
+        kIsOwner(true),
+        shape(shape) {}
+  explicit Tensor(const T *data, const Shape &shape)
+      : data(const_cast<T *>(data)),
+        kDataBytes(sizeof(T) * shape.GetSize()),
+        kIsOwner(false),
+        shape(shape) {}
+  explicit Tensor(const T *data, const size_t data_bytes)
       : data(const_cast<T *>(data)), kDataBytes(data_bytes), kIsOwner(false) {}
 
   /// @brief Destructor
@@ -114,13 +119,13 @@ public:
   }
 
   const T *GetData() const { return data; }
-  const size_t GetDataBytes() const { return kDataBytes; }
+  const size_t GetDataBytesSize() const { return kDataBytes; }
 
-private:
+ private:
   T *data;
   const size_t kDataBytes;
   const bool kIsOwner;
   Shape shape;
   const std::string kDataType = typeid(T).name();
 };
-} // namespace llama2
+}  // namespace llama2

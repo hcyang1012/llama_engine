@@ -43,4 +43,10 @@ void Config::load_config(std::ifstream &config_file) {
   kVocabSize = std::abs(VocabSize());
 }
 
-} // namespace llama2
+size_t Config::Size() {
+  return sizeof(kDim) + sizeof(kHiddenDim) + sizeof(kNumLayers) +
+         sizeof(kNumHeads) + sizeof(kNumKVHeads) + sizeof(kVocabSize) +
+         sizeof(kSeqLen);
+}
+
+}  // namespace llama2
