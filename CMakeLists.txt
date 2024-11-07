@@ -1,20 +1,23 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(llama2_cpp_dummy VERSION 0.1.0 LANGUAGES C CXX)
 
-include(CTest)
-enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
-set(SOURCES 
+set(LLAMA2_LIB_SOURCES 
     src/config.cpp
     src/transformer.cpp
     src/weights.cpp
-    main.cpp
 )
 
-add_executable(llama2_cpp_dummy ${SOURCES})
-target_include_directories(llama2_cpp_dummy PRIVATE include)
+add_library(llama2_cpp_dummy_lib STATIC ${LLAMA2_LIB_SOURCES})
+target_include_directories(llama2_cpp_dummy_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-include(CPack)
+add_executable(llama2_cpp_dummy ${CMAKE_SOURCE_DIR}/main.cpp)
+target_include_directories(llama2_cpp_dummy PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(llama2_cpp_dummy llama2_cpp_dummy_lib)
+
+
+
+
+enable_testing()
+add_subdirectory(tests)
