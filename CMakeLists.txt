@@ -4,7 +4,7 @@ project(llama2_cpp_dummy VERSION 0.1.0 LANGUAGES C CXX)
 include(FetchContent)
 FetchContent_Declare(
     glog
-    GIT_REPOSITORY git@github.com:google/glog.git
+    GIT_REPOSITORY https://github.com/google/glog.git
     GIT_TAG v0.4.0
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/download_deps/glog
 )

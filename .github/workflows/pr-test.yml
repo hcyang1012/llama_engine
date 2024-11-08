@@ -1,0 +1,23 @@
+name: Build and Test
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: CMake Action
+      uses: threeal/cmake-action@v2.0.0
+
+    - name: Download test file
+      run: wget -P build/tests https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.bin
+    
+    - name: Create symlink for tokenizer.bin
+      run: cp tokenizer.bin build/tests/tokenizer.bin
+
+    - name: Run tests
+      run: ctest --test-dir build --rerun-failed --output-on-failure 

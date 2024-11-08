@@ -10,6 +10,7 @@
 // C System-Headers
 
 // C++ System-Headers
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
