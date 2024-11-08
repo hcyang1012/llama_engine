@@ -31,3 +31,4 @@ endfunction()
 
 add_test_executable(loader_test loader_test.cpp)
 add_test_executable(tokenizer_test tokenizer_test.cpp)
+add_test_executable(sampler_test sampler_test.cpp)
