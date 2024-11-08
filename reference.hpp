@@ -564,10 +564,10 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
   // process the raw (UTF-8) byte sequence of the input string
   for (const char *c = text; *c != '\0'; c++) {
     // reset buffer if the current byte is ASCII or a leading byte
-    // 0xC0 is 11000000, so (*c & 0xC0) keeps the first 2 bits and zeros the
-    // rest 0x80 is 10000000 in UTF-8, all continuation bytes start with "10" in
-    // first two bits so in English this is: "if this byte is not a continuation
-    // byte"
+    // 0xC0 is 1100_0000, so (*c & 0xC0) keeps the first 2 bits and zeros the
+    // rest 0x80 is 1000_0000 in UTF-8, all continuation bytes start with "10"
+    // in first two bits so in English this is: "if this byte is not a
+    // continuation byte"
     if ((*c & 0xC0) != 0x80) {
       // this byte must be either a leading byte (11...) or an ASCII char
       // (0x...)

@@ -10,7 +10,9 @@
 // C System-Headers
 
 // C++ System-Headers
+#include <algorithm>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -23,11 +25,6 @@ namespace llama2 {
 template <typename T>
 class Tokenizer {
  public:
-  struct TokenIndex {
-    std::string str;
-    size_t id;
-  };
-
   Tokenizer(const std::string &vocab_file, const size_t vocab_size)
       : vocab_size_(vocab_size) {
     load_vocab(vocab_file);
@@ -38,14 +35,15 @@ class Tokenizer {
   const auto &VocabScores() const { return vocab_scores_; }
   const auto &BytePieces() const { return pices_; }
   const auto &MaxTokenLength() const { return max_token_length_; }
+  const auto &VocabMap() const { return vocab_map_; }
 
  private:
   std::vector<std::string> vocab_;
   std::vector<T> vocab_scores_;
-  std::vector<TokenIndex> sorted_vocab_;
   size_t vocab_size_;
   uint32_t max_token_length_;
   std::vector<std::string> pices_;
+  std::map<std::string, size_t> vocab_map_;
 
   void load_vocab(const std::string &vocab_file) {
     // Initize pieces
@@ -74,6 +72,7 @@ class Tokenizer {
       new_vocab.resize(len);
       if_vocab_file.read(&new_vocab[0], len);
       vocab_.push_back(new_vocab);
+      vocab_map_[new_vocab] = i;
     }
   }
 };

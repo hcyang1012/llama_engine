@@ -65,3 +65,23 @@ TEST_F(TokenizerTest, VocabTest) {
     EXPECT_EQ(kVocab[i], refVocab[i]);
   }
 }
+
+TEST_F(TokenizerTest, VocabSortTest) {
+  const auto& kSortedVocab = tokenizer_->VocabMap();
+  reference::TokenIndex* ref_sorted_vocab = (reference::TokenIndex*)malloc(
+      ref_tokenizer_.vocab_size * sizeof(reference::TokenIndex));
+
+  for (int i = 0; i < ref_tokenizer_.vocab_size; i++) {
+    ref_sorted_vocab[i].str = ref_tokenizer_.vocab[i];
+    ref_sorted_vocab[i].id = i;
+  }
+
+  qsort(ref_sorted_vocab, ref_tokenizer_.vocab_size,
+        sizeof(reference::TokenIndex), reference::compare_tokens);
+
+  for (size_t i = 0; i < ref_tokenizer_.vocab_size; i++) {
+    EXPECT_EQ(kSortedVocab.at(ref_sorted_vocab[i].str), ref_sorted_vocab[i].id);
+  }
+
+  free(ref_sorted_vocab);
+}
