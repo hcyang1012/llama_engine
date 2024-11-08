@@ -9,10 +9,25 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(googletest)
-
-add_executable(loader_test loader_test.cpp)
-target_include_directories(loader_test PUBLIC ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR})
-target_link_libraries(loader_test PRIVATE GTest::gtest_main glog llama2_cpp_dummy_lib)
-
 include(GoogleTest)
-gtest_discover_tests(loader_test)
+
+set(TEST_INCLUDE_PATH
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}
+)
+
+set(TEST_DEP_LIBS
+    GTest::gtest_main
+    glog
+    llama2_cpp_dummy_lib
+)
+
+function (add_test_executable target_name)
+    add_executable(${target_name} ${ARGN})
+    target_include_directories(${target_name} PUBLIC ${TEST_INCLUDE_PATH})
+    target_link_libraries(${target_name} PRIVATE ${TEST_DEP_LIBS})
+    gtest_discover_tests(${target_name})
+endfunction()
+
+add_test_executable(loader_test loader_test.cpp)
+add_test_executable(tokenizer_test tokenizer_test.cpp)

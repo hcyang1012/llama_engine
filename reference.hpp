@@ -412,7 +412,7 @@ int compare_tokens(const void *a, const void *b) {
   return strcmp(((TokenIndex *)a)->str, ((TokenIndex *)b)->str);
 }
 
-void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size) {
+void build_tokenizer(Tokenizer *t, const char *tokenizer_path, int vocab_size) {
   // i should have written the vocab_size into the tokenizer file... sigh
   t->vocab_size = vocab_size;
   // malloc space to hold the scores and the strings
@@ -423,6 +423,7 @@ void build_tokenizer(Tokenizer *t, char *tokenizer_path, int vocab_size) {
     t->byte_pieces[i * 2] = (unsigned char)i;
     t->byte_pieces[i * 2 + 1] = '\0';
   }
+
   // read in the file
   FILE *file = fopen(tokenizer_path, "rb");
   if (!file) {

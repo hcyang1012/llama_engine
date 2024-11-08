@@ -10,6 +10,8 @@
 // C System-Headers
 
 // C++ System-Headers
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -18,8 +20,9 @@
 // Third-party Headers
 
 namespace llama2 {
-template <typename T> class Tokenizer {
-public:
+template <typename T>
+class Tokenizer {
+ public:
   struct TokenIndex {
     std::string str;
     size_t id;
@@ -30,7 +33,13 @@ public:
     load_vocab(vocab_file);
   }
 
-private:
+  const size_t &VocabSize() const { return vocab_size_; }
+  const auto &Vocab() const { return vocab_; }
+  const auto &VocabScores() const { return vocab_scores_; }
+  const auto &BytePieces() const { return pices_; }
+  const auto &MaxTokenLength() const { return max_token_length_; }
+
+ private:
   std::vector<std::string> vocab_;
   std::vector<T> vocab_scores_;
   std::vector<TokenIndex> sorted_vocab_;
@@ -39,12 +48,11 @@ private:
   std::vector<std::string> pices_;
 
   void load_vocab(const std::string &vocab_file) {
-    vocab_.resize(vocab_size_);
-    vocab_scores_.resize(vocab_size_);
-
     // Initize pieces
-    for (int c = 0; c < 128; c++) {
-      pices_.push_back(std::string(1, c));
+    for (size_t i = 0; i < 256; i++) {
+      std::stringstream ss;
+      ss << static_cast<char>(i);
+      pices_.push_back(ss.str());
     }
 
     // Load the vocabulary file
@@ -60,12 +68,13 @@ private:
       int32_t len;
       float score;
       if_vocab_file.read(reinterpret_cast<char *>(&score), sizeof(score));
-      vocab_scores_[i] = score;
+      vocab_scores_.push_back(score);
       if_vocab_file.read(reinterpret_cast<char *>(&len), sizeof(len));
-      vocab_[i].resize(len + 1);
-      if_vocab_file.read(&vocab_[i][0], len);
-      vocab_[i][len] = '\0';
+      std::string new_vocab;
+      new_vocab.resize(len);
+      if_vocab_file.read(&new_vocab[0], len);
+      vocab_.push_back(new_vocab);
     }
   }
 };
-} // namespace llama2
+}  // namespace llama2
