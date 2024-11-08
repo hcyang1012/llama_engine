@@ -24,26 +24,25 @@ class RunState {
  public:
   RunState(const Config& config) {
     size_t kKVDims = (config.Dim() * config.NumKVHeads()) / config.NumHeads();
-    x = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.Dim())});
-    xb = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.Dim())});
-    xb2 = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.Dim())});
+    x = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    xb = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    xb2 = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
     hb = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.HiddenDim())});
+        Shape{static_cast<size_t>(config.HiddenDim())});
     hb2 = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.HiddenDim())});
-    q = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.Dim())});
-    key_cache = std::make_shared<Tensor<T>>(std::vector<size_t>{
-        static_cast<size_t>(config.NumLayers(), config.SeqLen(), kKVDims)});
-    value_cache = std::make_shared<Tensor<T>>(std::vector<size_t>{
-        static_cast<size_t>(config.NumLayers(), config.SeqLen(), kKVDims)});
-    att = std::make_shared<Tensor<T>>(std::vector<size_t>{
-        static_cast<size_t>(config.NumHeads(), config.SeqLen())});
+        Shape{static_cast<size_t>(config.HiddenDim())});
+    q = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    key_cache = std::make_shared<Tensor<T>>(
+        Shape{static_cast<size_t>(config.NumLayers()),
+              static_cast<size_t>(config.SeqLen()), kKVDims});
+    value_cache = std::make_shared<Tensor<T>>(
+        Shape{static_cast<size_t>(config.NumLayers()),
+              static_cast<size_t>(config.SeqLen()), kKVDims});
+    att = std::make_shared<Tensor<T>>(
+        Shape{static_cast<size_t>(config.NumHeads()),
+              static_cast<size_t>(config.SeqLen())});
     logits = std::make_shared<Tensor<T>>(
-        std::vector<size_t>{static_cast<size_t>(config.VocabSize())});
+        Shape{static_cast<size_t>(config.VocabSize())});
 
     if (!x || !xb || !xb2 || !hb || !hb2 || !q || !key_cache || !value_cache ||
         !att || !logits) {

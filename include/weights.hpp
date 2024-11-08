@@ -21,27 +21,28 @@
 
 namespace llama2 {
 
-template <typename T> class TransformerWeights {
-public:
+template <typename T>
+class TransformerWeights {
+ public:
   TransformerWeights(const Config &config, const T *p_weights)
       : config(config) {
     load_weights(p_weights, config.VocabSize() > 0);
   }
 
-  const T *TokenEmbeddingTable() const { return token_embedding_table; }
-  const T *RMSAttnWeight() const { return rms_attn_weight; }
-  const T *RMSFFNWeight() const { return rms_ffn_weight; }
-  const T *WQ() const { return wq; }
-  const T *WK() const { return wk; }
-  const T *WV() const { return wv; }
-  const T *WO() const { return wo; }
-  const T *WFFN1() const { return wffn1; }
-  const T *WFFN2() const { return wffn2; }
-  const T *WFFN3() const { return wffn3; }
-  const T *RMSFinalWeight() const { return rms_final_weight; }
-  const T *WCLS() const { return wcls; }
+  const T *TokenEmbeddingTable() const { return token_embedding_table_; }
+  const T *RMSAttnWeight() const { return rms_attn_weight_; }
+  const T *RMSFFNWeight() const { return rms_ffn_weight_; }
+  const T *WQ() const { return wq_; }
+  const T *WK() const { return wk_; }
+  const T *WV() const { return wv_; }
+  const T *WO() const { return wo_; }
+  const T *W1() const { return w1_; }
+  const T *W2() const { return w2_; }
+  const T *W3() const { return w3_; }
+  const T *RMSFinalWeight() const { return rms_final_weight_; }
+  const T *WCLS() const { return wcls_; }
 
-private:
+ private:
   void load_weights(const T *p_weights, const bool shared_weights) {
     // Load weights from the checkpoint file
     const int kHeadSize = config.Dim() / config.NumHeads();
@@ -50,79 +51,79 @@ private:
 
     const size_t kTokenEmbeddingTableSize =
         static_cast<size_t>(config.VocabSize()) * config.Dim();
-    token_embedding_table = p_weights;
+    token_embedding_table_ = p_weights;
     p_weights += kTokenEmbeddingTableSize;
 
     const size_t kRmsAttnWeightSize = kNumLayers * config.Dim();
-    rms_attn_weight = p_weights;
+    rms_attn_weight_ = p_weights;
     p_weights += kRmsAttnWeightSize;
 
     const size_t kWQSize =
         kNumLayers * config.Dim() * (config.NumHeads() * kHeadSize);
-    wq = p_weights;
+    wq_ = p_weights;
     p_weights += kWQSize;
 
     const size_t kWKSize =
         kNumLayers * config.Dim() * (config.NumKVHeads() * kHeadSize);
-    wk = p_weights;
+    wk_ = p_weights;
     p_weights += kWKSize;
 
     const size_t kWVSize =
         kNumLayers * config.Dim() * (config.NumKVHeads() * kHeadSize);
-    wv = p_weights;
+    wv_ = p_weights;
     p_weights += kWVSize;
 
     const size_t kWOSize =
         kNumLayers * config.Dim() * (config.NumHeads() * kHeadSize);
-    wo = p_weights;
+    wo_ = p_weights;
     p_weights += kWOSize;
 
     const size_t kRmsFFNWeightSize = kNumLayers * config.Dim();
-    rms_ffn_weight = p_weights;
+    rms_ffn_weight_ = p_weights;
     p_weights += kRmsFFNWeightSize;
 
-    const size_t kWFFN1Size = kNumLayers * config.HiddenDim() * config.Dim();
-    wffn1 = p_weights;
-    p_weights += kWFFN1Size;
+    const size_t kW1Size = kNumLayers * config.HiddenDim() * config.Dim();
+    w1_ = p_weights;
+    p_weights += kW1Size;
 
-    const size_t kWFFN2Size = kNumLayers * config.Dim() * config.HiddenDim();
-    wffn2 = p_weights;
-    p_weights += kWFFN2Size;
+    const size_t kW2Size = kNumLayers * config.Dim() * config.HiddenDim();
+    w2_ = p_weights;
+    p_weights += kW2Size;
 
-    const size_t kWFFN3Size = kNumLayers * config.HiddenDim() * config.Dim();
-    wffn3 = p_weights;
-    p_weights += kWFFN3Size;
+    const size_t kW3Size = kNumLayers * config.HiddenDim() * config.Dim();
+    w3_ = p_weights;
+    p_weights += kW3Size;
 
     const size_t kRmsFinalWeightSize = config.Dim();
-    rms_final_weight = p_weights;
+    rms_final_weight_ = p_weights;
     p_weights += kRmsFinalWeightSize;
 
     p_weights += config.SeqLen() * kHeadSize /
-                 2; // Skip what used to be freq_cis_real (for RoPE)
+                 2;  // Skip what used to be freq_cis_real (for RoPE)
     p_weights += config.SeqLen() * kHeadSize /
-                 2; // Skip what used to be freq_cis_imag (for RoPE)
+                 2;  // Skip what used to be freq_cis_imag (for RoPE)
 
-    wcls = shared_weights ? token_embedding_table : p_weights;
+    wcls_ = shared_weights ? token_embedding_table_ : p_weights;
   }
   const Config &config;
-  const T *token_embedding_table; ///< Token embedding table. Shape:
-                                  ///< [vocab_size, dim]
-  const T *rms_attn_weight;       ///< RMS attention weight. Shape: [layer, dim]
+  const T *token_embedding_table_;  ///< Token embedding table. Shape:
+                                    ///< [vocab_size, dim]
+  const T *rms_attn_weight_;  ///< RMS attention weight. Shape: [layer, dim]
 
-  const T *rms_ffn_weight; ///< RMS FFN weight. Shape:
-                           ///< [layer, dim]
-  const T *wq;             ///< Query weight. Shape: [layer, dim]
-  const T *wk;             ///< Key weight. Shape: [layer, dim]
-  const T *wv;             ///< Value weight. Shape: [layer, dim]
-  const T *wo;             ///< Output weight. Shape: [layer, dim]
-  const T *wffn1;          ///< FFN weight 1. Shape: [layer, hidden_dim, dim]
-  const T *wffn2;          ///< FFN weight 2. Shape: [layer, dim, hidden_dim]
-  const T *wffn3;          ///< FFN weight 3. Shape: [layer, hidden_dim, dim]
+  const T *rms_ffn_weight_;  ///< RMS FFN weight. Shape:
+                             ///< [layer, dim]
+  const T *wq_;              ///< Query weight. Shape: [layer, dim]
+  const T *wk_;              ///< Key weight. Shape: [layer, dim]
+  const T *wv_;              ///< Value weight. Shape: [layer, dim]
+  const T *wo_;              ///< Output weight. Shape: [layer, dim]
+  const T *w1_;              ///< FFN weight 1. Shape: [layer, hidden_dim, dim]
+  const T *w2_;              ///< FFN weight 2. Shape: [layer, dim, hidden_dim]
+  const T *w3_;              ///< FFN weight 3. Shape: [layer, hidden_dim, dim]
 
-  const T *rms_final_weight; ///< RMS final weight. Shape:
-                             ///< [dim, vocab_size]
-  const T *wcls;             ///< Classification weight for the logit.
-                             ///< Shape: [dim, vocab_size]
+  const T *rms_final_weight_;  ///< RMS final weight. Shape:
+                               ///< [dim, vocab_size]
+  const T *wcls_;              ///< Classification weight for the logit.
+                               ///< Shape: [dim, vocab_size]
 };
 
-} // namespace llama2
+}  // namespace llama2
