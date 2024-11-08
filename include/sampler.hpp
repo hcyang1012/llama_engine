@@ -20,7 +20,7 @@
 namespace llama2 {
 
 class Sampler {
-public:
+ public:
   /// @brief Struct used when sorting probabilities during top-p sampling
   struct ProbIdx {
     float prob;
@@ -29,14 +29,23 @@ public:
 
   Sampler(const size_t vocab_size, const float temperature, const float topp,
           const uint64_t rng_seed)
-      : vocab_size(vocab_size), temperature(temperature), topp(topp),
-        rng_state(rng_seed), prob_indices(vocab_size) {}
+      : vocab_size(vocab_size),
+        temperature(temperature),
+        topp(topp),
+        rng_state(rng_seed),
+        prob_indices(vocab_size) {}
 
-private:
+  const size_t &VocabSize() const { return vocab_size; }
+  const auto &ProbIndices() const { return prob_indices; }
+  const float &Temperature() const { return temperature; }
+  const float &TopP() const { return topp; }
+  const uint64_t &RngState() const { return rng_state; }
+
+ private:
   size_t vocab_size;
   std::vector<ProbIdx> prob_indices;
-  float temperature;
-  float topp;
-  uint64_t rng_state;
+  const float temperature;
+  const float topp;
+  const uint64_t rng_state;
 };
-} // namespace llama2
+}  // namespace llama2
