@@ -119,6 +119,7 @@ class Tensor {
   }
 
   const T *GetData() const { return data; }
+  T *GetData() { return data; }
   const size_t GetDataBytesSize() const { return kDataBytes; }
 
  private:
