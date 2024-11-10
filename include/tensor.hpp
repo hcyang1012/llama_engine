@@ -122,6 +122,9 @@ class Tensor {
   T *GetData() { return data; }
   const size_t GetDataBytesSize() const { return kDataBytes; }
 
+  T &operator[](size_t index) { return data[index]; }
+  T operator[](size_t index) const { return data[index]; }
+
  private:
   T *data;
   const size_t kDataBytes;
@@ -129,4 +132,17 @@ class Tensor {
   Shape shape;
   const std::string kDataType = typeid(T).name();
 };
+
 }  // namespace llama2
+
+bool operator==(const llama2::Shape &lhs, const llama2::Shape &rhs) {
+  if (lhs.GetRank() != rhs.GetRank()) {
+    return false;
+  }
+  for (size_t i = 0; i < lhs.GetRank(); i++) {
+    if (lhs[i] != rhs[i]) {
+      return false;
+    }
+  }
+  return true;
+}

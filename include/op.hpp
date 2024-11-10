@@ -15,19 +15,20 @@
 #include <vector>
 // Project Headers
 
+#include "tensor.hpp"
+
 // Third-party Headers
 
 namespace llama2 {
 template <typename T>
 class RmsNorm {
  public:
-  static std::vector<T> Compute(const std::vector<T>& x,
-                                const std::vector<T>& weight) {
-    CHECK_EQ(x.size(), weight.size())
-        << "Size of x and weight should be the same" << x.size() << " vs "
-        << weight.size();
-    std::vector<T> o(x.size());
-    Compute(o.data(), x.data(), weight.data(), x.size());
+  static Tensor<T> Compute(const Tensor<T>& x, const Tensor<T>& weight) {
+    CHECK(x.GetShape() == weight.GetShape())
+        << "Size of the input tensors should be the same";
+    CHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
+    Tensor<T> o(x.GetShape());
+    Compute(o.GetData(), x.GetData(), weight.GetData(), x.GetShape()[0]);
     return o;
   }
 
