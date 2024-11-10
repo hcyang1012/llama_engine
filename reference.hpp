@@ -205,7 +205,7 @@ void free_transformer(Transformer *t) {
 // ----------------------------------------------------------------------------
 // neural net blocks; the dynamics of the Transformer
 
-void rmsnorm(float *o, float *x, float *weight, int size) {
+void rmsnorm(float *o, const float *x, const float *weight, const int size) {
   // calculate sum of squares
   float ss = 0.0f;
   for (int j = 0; j < size; j++) {
