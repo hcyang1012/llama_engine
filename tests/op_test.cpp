@@ -3,8 +3,10 @@
 // For random number generation
 #include <random>
 
+#include "encoder.hpp"
 #include "op.hpp"
 #include "reference.hpp"
+#include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
 class RmsNormTest : public ::testing::Test {
@@ -23,6 +25,8 @@ class RmsNormTest : public ::testing::Test {
     }
 
     transformer_ = std::make_unique<llama2::Transformer<float>>(kChkPointPath);
+    tokenizer_ = std::make_unique<llama2::Tokenizer<float>>(
+        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
   void TearDown() override {
@@ -34,9 +38,10 @@ class RmsNormTest : public ::testing::Test {
   std::vector<float> weight_;
 
   const std::string kChkPointPath = "stories15M.bin";
+  const std::string kTokenizerBinPath = "tokenizer.bin";
 
   std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::TransformerWeights<float>> weights_;
+  std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
 };
 
 TEST_F(RmsNormTest, RmsNormTest) {
@@ -46,4 +51,37 @@ TEST_F(RmsNormTest, RmsNormTest) {
   reference::rmsnorm(expected_o.data(), x_.data(), weight_.data(), kSize);
 
   EXPECT_EQ(actual.size(), expected_o.size());
+}
+
+TEST_F(RmsNormTest, ForwardTest) {
+  const size_t kNumOfLayers = transformer_->GetConfig().NumLayers();
+  const size_t kDim = transformer_->GetConfig().Dim();
+  const auto& kWeights = transformer_->GetWeights();
+
+  reference::Transformer ref_transformer;
+  reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
+  const auto ref_weights = ref_transformer.weights;
+  auto ref_run_state = ref_transformer.state;
+
+  const std::string kPrompt = "Who are you?";
+
+  const size_t kPos = 0;  // First position
+  llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
+  auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
+  std::copy(content_row, content_row + kDim,
+            transformer_->GetRunState().X()->GetData());
+
+  std::copy(content_row, content_row + kDim, ref_run_state.x);
+
+  for (size_t layer = 0; layer < kNumOfLayers; layer++) {
+    reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
+                       ref_weights.rms_att_weight + layer * kDim, kDim);
+
+    llama2::RmsNorm<float>::Compute(transformer_->GetRunState().XB()->GetData(),
+                                    transformer_->GetRunState().X()->GetData(),
+                                    kWeights.RMSAttnWeight() + layer * kDim,
+                                    kDim);
+    EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
+                           transformer_->GetRunState().XB()->GetData()));
+  }
 }

@@ -36,6 +36,9 @@ class Transformer {
 
   const auto &GetConfig() const { return *config_; }
   const auto &GetWeights() const { return *weights_; }
+  const auto &GetRunState() const { return *run_state_; }
+
+  auto &GetRunState() { return *run_state_; }
 
   void Generate(const Tokenizer<T> &tokenizer, const Sampler &sampler,
                 const std::string &prompt, const size_t steps) {}
