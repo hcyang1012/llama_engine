@@ -22,7 +22,7 @@ namespace llama2 {
 template <typename T>
 class RunState {
  public:
-  RunState(const Config& config) {
+  RunState(const Config& config) : config_(config) {
     size_t kKVDims = (config.Dim() * config.NumKVHeads()) / config.NumHeads();
     x = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
     xb = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
@@ -56,7 +56,10 @@ class RunState {
   std::shared_ptr<Tensor<T>> HB() { return hb; }
   std::shared_ptr<Tensor<T>> HB2() { return hb2; }
   std::shared_ptr<Tensor<T>> Q() { return q; }
-  std::shared_ptr<Tensor<T>> K() { return k; }
+  std::shared_ptr<Tensor<T>> K(const size_t layer, const size_t pos) {
+    const size_t kKVDims =
+        (config_.Dim() * config_.NumKVHeads()) / config_.NumHeads();
+  }
   std::shared_ptr<Tensor<T>> V() { return v; }
   std::shared_ptr<Tensor<T>> Att() { return att; }
   std::shared_ptr<Tensor<T>> Logits() { return logits; }
@@ -64,6 +67,7 @@ class RunState {
   std::shared_ptr<Tensor<T>> ValueCache() { return value_cache; }
 
  private:
+  const Config& config_;
   std::shared_ptr<Tensor<T>> x;   ///< activation at current time stamp (dim,)
   std::shared_ptr<Tensor<T>> xb;  ///< same, but inside a residual branch (dim,)
   std::shared_ptr<Tensor<T>>
