@@ -11,6 +11,7 @@
 
 // C++ System-Headers
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <map>
 #include <sstream>
