@@ -5,7 +5,7 @@
 
 #include "encoder.hpp"
 #include "op.hpp"
-#include "reference.hpp"
+#include "reference.cpp"
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
