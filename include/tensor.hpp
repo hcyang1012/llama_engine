@@ -50,10 +50,20 @@ class Shape {
   /// @return Size of shape
   size_t GetSize() const { return kSize; }
 
+  Shape &operator=(const Shape &other) {
+    if (this == &other) {
+      return *this;
+    }
+    dims = other.dims;
+    kRank = other.kRank;
+    kSize = other.kSize;
+    return *this;
+  }
+
  private:
-  const std::vector<size_t> dims = {};
-  const size_t kRank = 0;
-  const size_t kSize = 0;
+  std::vector<size_t> dims = {};
+  size_t kRank = 0;
+  size_t kSize = 0;
 
   size_t calc_size() const {
     size_t size = 1;
@@ -125,12 +135,29 @@ class Tensor {
   T &operator[](size_t index) { return data[index]; }
   T operator[](size_t index) const { return data[index]; }
 
+  Tensor<T> &operator=(const Tensor<T> &other) {
+    if (this == &other) {
+      return *this;
+    }
+    if (kDataBytes != other.GetDataBytesSize()) {
+      throw std::invalid_argument("Size of the shape does not match the data");
+    }
+    delete[] data;
+    data = new T[other.GetShape().GetSize()];
+    std::copy(other.GetData(), other.GetData() + other.GetShape().GetSize(),
+              data);
+    kDataBytes = other.GetDataBytesSize();
+    shape = other.GetShape();
+    kIsOwner = true;
+
+    return *this;
+  }
+
  private:
   T *data;
-  const size_t kDataBytes;
-  const bool kIsOwner;
+  size_t kDataBytes;
+  bool kIsOwner;
   Shape shape;
-  const std::string kDataType = typeid(T).name();
 };
 
 }  // namespace llama2
