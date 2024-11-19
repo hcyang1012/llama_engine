@@ -292,8 +292,8 @@ float *forward(Transformer *transformer, int token, int pos) {
     // head
     for (int i = 0; i < dim; i += 2) {
       int head_dim = i % head_size;
-      float freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-      float val = pos * freq;
+      float theta = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+      float val = pos * theta;
       float fcr = cosf(val);
       float fci = sinf(val);
       int rotn = i < kv_dim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
@@ -978,10 +978,7 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
   free(prompt_tokens);
 }
 
-#if 0
-// ----------------------------------------------------------------------------
-// CLI, include only if not testing
-#ifndef TESTING
+#if defined(INCLUDE_MAIN)
 
 void error_usage() {
   fprintf(stderr, "Usage:   run <checkpoint> [options]\n");
@@ -1094,7 +1091,6 @@ int main(int argc, char *argv[]) {
   free_transformer(&transformer);
   return 0;
 }
-#endif
 #endif
 }  // namespace reference
 }

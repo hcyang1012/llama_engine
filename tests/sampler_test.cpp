@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-#include "reference.hpp"
+#include "reference.cpp"
 #include "transformer.hpp"
 class SamplerTest : public ::testing::Test {
  public:

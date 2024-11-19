@@ -12,9 +12,11 @@
 // C++ System-Headers
 #include <glog/logging.h>
 
+#include <cmath>
 #include <vector>
 // Project Headers
 
+#include "config.hpp"
 #include "tensor.hpp"
 
 // Third-party Headers
@@ -79,6 +81,50 @@ class MatMul {
         val += right[i * n + j] * left[j];
       }
       out[i] = val;
+    }
+  }
+};
+
+class RoPE {
+ public:
+  static void Compute(const Tensor<float>& input, const size_t position,
+                      const Config& config, Tensor<float>& output,
+                      const bool overwrite = false) {
+    CHECK_EQ(input.GetShape()[0], config.Dim())
+        << "Input tensor should have the same dimension as the config";
+
+    if (overwrite) {
+      CHECK_EQ(output.GetShape()[0], config.Dim())
+          << "Output tensor should have the same dimension as the config";
+    } else {
+      output = Tensor<float>(input.GetShape());
+    }
+
+    compute(input.GetData(), position, config, output.GetData());
+  }
+
+ private:
+  static void compute(const float* input, const size_t position,
+                      const Config& config, float* output) {
+    const size_t dim = config.Dim();
+    const size_t kv_dim =
+        (config.Dim() * config.NumKVHeads()) / config.NumHeads();
+    const size_t head_size = dim / config.NumHeads();
+    for (size_t i = 0; i < dim; i += 2) {
+      size_t head_dim = i % head_size;
+      float theta =
+          1.0f / powf(10000.0f, head_dim / static_cast<float>(head_size));
+      float val = position * theta;
+      float fcr = cosf(val);
+      float fci = sinf(val);
+      size_t rotn =
+          i < kv_dim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
+      for (size_t v = 0; v < rotn; v++) {
+        float v0 = input[i];
+        float v1 = input[i + 1];
+        output[i] = v0 * fcr - v1 * fci;
+        output[i + 1] = v0 * fci + v1 * fcr;
+      }
     }
   }
 };

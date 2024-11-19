@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-#include "reference.hpp"
+#include "reference.cpp"
 #include "transformer.hpp"
 
 class TokenizerTest : public ::testing::Test {
