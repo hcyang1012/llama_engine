@@ -170,4 +170,56 @@ class SoftMax {
 
  private:
 };
+
+template <typename T>
+class Attention {
+ public:
+  /**
+   * @brief
+   *
+   * @param Q  (kPerHeadDim)
+   * @param K (kHeadDim, Seq_Len)
+   * @param V (kHeadDim, Seq_Len)
+   * @param config
+   * @param pos
+   * @param header_idx
+   * @param output {kPerHeadDim}
+   */
+  static void Compute(const Tensor<T>& Q, const Tensor<T>& K,
+                      const Tensor<T>& V, const Config& config,
+                      const size_t pos, const size_t header_idx,
+                      Tensor<T>& output) {
+    const size_t kPerHeadDim = config.Dim() / config.NumHeads();
+    const size_t kKVHeadDim =
+        (config.Dim() * config.NumKVHeads()) / config.NumHeads();
+    CHECK_EQ(Q.GetShape()[0], kPerHeadDim);
+    CHECK_EQ(K.GetShape()[0], kKVHeadDim);
+    CHECK_EQ(V.GetShape()[0], kKVHeadDim);
+
+    Tensor<T> attention_scores({pos + 1});
+    for (size_t t = 0; t <= pos; ++t) {
+      float score = 0.0f;
+      for (size_t i = 0; i < kPerHeadDim; ++i) {
+        score += (Q[{i}] * K[{i, t}]);
+      }
+      score /= sqrtf(kPerHeadDim);
+      attention_scores[{t}] = score;
+    }
+
+    // Calculate the attention score and store it back to the same buffer
+    SoftMax<T>::Compute(attention_scores, attention_scores);
+
+    // Weighted sum of the values, store back into output
+    std::fill(output.GetData(), output.GetData() + output.GetShape().GetSize(),
+              static_cast<T>(0));
+    for (size_t t = 0; t <= pos; ++t) {
+      for (size_t i = 0; i < kPerHeadDim; ++i) {
+        output[{i}] += (attention_scores[t] * V[{i, t}]);
+      }
+    }
+  }
+
+ private:
+};
+
 }  // namespace llama2

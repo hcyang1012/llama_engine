@@ -114,7 +114,10 @@ class Tensor {
   }
   const T &operator[](const std::vector<size_t> &indices) const {
     size_t index = 0;
-    for (size_t i = 0; i < indices.size(); i++) {
+    // The first element of the shape is the least significant dimension
+    // For example, for a 2D tensor, the shape is {3, 4}
+    // [2,3] = 3 * 3 + 2 = 11
+    for (int i = indices.size() - 1; i >= 0; i--) {
       index = index * shape[i] + indices[i];
     }
     return data[index];
@@ -127,6 +130,13 @@ class Tensor {
       throw std::invalid_argument("Size of the shape does not match the data");
     }
     this->shape = shape;
+  }
+
+  std::shared_ptr<Tensor<T>> ReShape(const Shape &shape) {
+    if (shape.GetSize() != kDataBytes / sizeof(T)) {
+      throw std::invalid_argument("Size of the shape does not match the data");
+    }
+    return std::make_shared<Tensor<T>>(data, shape);
   }
 
   const T *GetData() const { return data; }

@@ -49,7 +49,7 @@ class AttentionTest : public ::testing::Test {
 TEST_F(AttentionTest, ForwardTest) {
   const size_t kNumOfLayers = transformer_->GetConfig().NumLayers();
   const size_t kDim = transformer_->GetConfig().Dim();
-  const auto& kWeights = transformer_->GetWeights();
+  const auto &kWeights = transformer_->GetWeights();
 
   reference::Transformer ref_transformer;
   reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
@@ -66,7 +66,7 @@ TEST_F(AttentionTest, ForwardTest) {
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
-  const auto& kRefConfig = ref_transformer.config;
+  const auto &kRefConfig = ref_transformer.config;
   const size_t kRefKVDim =
       (kRefConfig.dim * kRefConfig.n_kv_heads) / kRefConfig.n_heads;
 
@@ -88,14 +88,14 @@ TEST_F(AttentionTest, ForwardTest) {
                              transformer_->GetRunState().XB()->GetData()));
     }
 
+    const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
+    ref_run_state.k =
+        ref_run_state.key_cache + kRefLayerOffset + kPos * kRefKVDim;
+    ref_run_state.v =
+        ref_run_state.value_cache + kRefLayerOffset + kPos * kRefKVDim;
+
     // Calculate QKV
     {
-      const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
-      ref_run_state.k =
-          ref_run_state.key_cache + kRefLayerOffset + kPos * kRefKVDim;
-      ref_run_state.v =
-          ref_run_state.value_cache + kRefLayerOffset + kPos * kRefKVDim;
-
       // qkv matmuls for this position
       reference::matmul(ref_run_state.q, ref_run_state.xb,
                         ref_weights.wq + layer * kDim * kDim, kDim, kDim);
@@ -130,10 +130,87 @@ TEST_F(AttentionTest, ForwardTest) {
                              transformer_->GetRunState().V()));
     }
 
+    const size_t kRefHeadSize = kDim / kRefConfig.n_heads;
+    // RoPE
+    {
+      for (int i = 0; i < kDim; i += 2) {
+        int head_dim = i % kRefHeadSize;
+        float theta = 1.0f / powf(10000.0f, head_dim / (float)kRefHeadSize);
+        float val = kPos * theta;
+        float fcr = cosf(val);
+        float fci = sinf(val);
+        int rotn =
+            i < kRefKVDim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
+        for (int v = 0; v < rotn; v++) {
+          float *vec = v == 0 ? ref_run_state.q
+                              : ref_run_state.k;  // the vector to rotate
+          float v0 = vec[i];
+          float v1 = vec[i + 1];
+          vec[i] = v0 * fcr - v1 * fci;
+          vec[i + 1] = v0 * fci + v1 * fcr;
+        }
+      }
+
+      llama2::RoPE::Compute(*(transformer_->GetRunState().Q()), kPos,
+                            transformer_->GetConfig(),
+                            *(transformer_->GetRunState().Q()), true);
+
+      EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
+                             transformer_->GetRunState().Q()->GetData()));
+    }
+
     // Attention
     {
-      for (size_t head_idx = 0; head_idx < kRefConfig.n_heads; head_idx++) {
-        // float *q = ref_run_state.q + head_idx *
+      const size_t kPerHeadDim = kDim / transformer_->GetConfig().NumHeads();
+      for (size_t header_idx = 0; header_idx < kRefConfig.n_heads;
+           ++header_idx) {
+        float *q = ref_run_state.q + header_idx * kRefHeadSize;
+        float *att = ref_run_state.att + header_idx * kRefConfig.seq_len;
+
+        for (int t = 0; t <= kPos; t++) {
+          float *k = ref_run_state.key_cache + kRefLayerOffset + t * kRefKVDim +
+                     (header_idx / kRefKVDim) * kRefHeadSize;
+          float score = 0.0f;
+          for (int i = 0; i < kRefHeadSize; i++) {
+            score += q[i] * k[i];
+          }
+          score /= sqrtf(kRefHeadSize);
+          att[t] = score;
+        }
+
+        reference::softmax(att, kPos + 1);
+
+        float *xb = ref_run_state.xb + header_idx * kRefHeadSize;
+        memset(xb, 0, kRefHeadSize * sizeof(float));
+        for (int t = 0; t <= kPos; t++) {
+          float *v = ref_run_state.value_cache + kRefLayerOffset +
+                     t * kRefKVDim + (header_idx / kRefKVDim) * kRefHeadSize;
+          float a = att[t];
+          for (int i = 0; i < kRefHeadSize; i++) {
+            xb[i] += a * v[i];
+          }
+        }
+
+        auto Q =
+            llama2::Tensor<float>{transformer_->GetRunState().Q()->GetData(),
+                                  llama2::Shape({kPerHeadDim})};
+        auto K = llama2::Tensor<float>{
+            transformer_->GetRunState().K(),
+            llama2::Shape({kKVDim, static_cast<size_t>(
+                                       transformer_->GetConfig().SeqLen())})};
+        auto V = llama2::Tensor<float>{
+            transformer_->GetRunState().V(),
+            llama2::Shape({kKVDim, static_cast<size_t>(
+                                       transformer_->GetConfig().SeqLen())})};
+        auto output =
+            llama2::Tensor<float>{transformer_->GetRunState().XB()->GetData() +
+                                      header_idx * kPerHeadDim,
+                                  llama2::Shape({kPerHeadDim})};
+        llama2::Attention<float>::Compute(Q, K, V, transformer_->GetConfig(),
+                                          kPos, header_idx, output);
+
+        // Compare the output
+        EXPECT_TRUE(std::equal(xb, xb + kRefHeadSize, output.GetData()));
       }
     }
   }
