@@ -56,11 +56,15 @@ class RunState {
   std::shared_ptr<Tensor<T>> HB() { return hb; }
   std::shared_ptr<Tensor<T>> HB2() { return hb2; }
   std::shared_ptr<Tensor<T>> Q() { return q; }
-  std::shared_ptr<Tensor<T>> K(const size_t layer, const size_t pos) {
+  void UpdateKV(const size_t layer, const size_t pos) {
     const size_t kKVDims =
         (config_.Dim() * config_.NumKVHeads()) / config_.NumHeads();
+    const size_t kLayerOffset = layer * config_.SeqLen() * kKVDims;
+    k = key_cache->GetData() + kLayerOffset + pos * kKVDims;
+    v = value_cache->GetData() + kLayerOffset + pos * kKVDims;
   }
-  std::shared_ptr<Tensor<T>> V() { return v; }
+  T* K() { return k; }
+  T* V() { return v; }
   std::shared_ptr<Tensor<T>> Att() { return att; }
   std::shared_ptr<Tensor<T>> Logits() { return logits; }
   std::shared_ptr<Tensor<T>> KeyCache() { return key_cache; }
@@ -77,8 +81,8 @@ class RunState {
   std::shared_ptr<Tensor<T>>
       hb2;  ///< buffer for hidden dimension in the ffn (hidden_dim,)
   std::shared_ptr<Tensor<T>> q;  ///< query (dim,)
-  std::shared_ptr<Tensor<T>> k;  ///< key (dim,)
-  std::shared_ptr<Tensor<T>> v;  ///< value (dim,)
+  T* k;                          ///< key (dim,), Pointer to the key cache
+  T* v;                          ///< value (dim,), Pointer to the value cache
   std::shared_ptr<Tensor<T>>
       att;  ///< buffer for scores/attention values (n_heads, seq_len)
   std::shared_ptr<Tensor<T>> logits;  ///< output logits
