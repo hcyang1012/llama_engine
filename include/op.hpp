@@ -128,4 +128,46 @@ class RoPE {
     }
   }
 };
+
+template <typename T>
+class SoftMax {
+ public:
+  static void Compute(const Tensor<T>& input, Tensor<float>& output) {
+    CHECK_EQ(input.GetShape(), output.GetShape())
+        << "Input and output tensor should have the same shape";
+    CHECK_LE(input.GetShape().GetRank(), 2)
+        << "Input tensor should be 1D or 2D tensor";
+
+    const size_t kStride = input.GetShape().GetRank() == 1
+                               ? input.GetShape()[0]
+                               : input.GetShape()[1];
+
+    if (input.GetShape().GetRank() == 1) {
+      Compute(input.GetData(), output.GetData(), kStride);
+    } else {
+      const size_t kBatchSize = input.GetShape()[0];
+      for (size_t batch = 0; batch < kBatchSize; batch++) {
+        Compute(input.GetData() + batch * kStride,
+                output.GetData() + batch * kStride, kStride);
+      }
+    }
+  }
+
+  static void Compute(const T* input, float* output, const size_t size) {
+    CHECK_GE(size, 0) << "Size should be greater than or equal to 0";
+    float sum = 0.0f;
+    float max_val = -std::numeric_limits<float>::infinity();
+    for (size_t i = 0; i < size; i++) {
+      max_val = std::max(max_val, static_cast<float>(input[i]));
+    }
+    for (size_t i = 0; i < size; i++) {
+      sum += expf(static_cast<float>(input[i]) - max_val);
+    }
+    for (size_t i = 0; i < size; i++) {
+      output[i] = expf(static_cast<float>(input[i]) - max_val) / sum;
+    }
+  }
+
+ private:
+};
 }  // namespace llama2

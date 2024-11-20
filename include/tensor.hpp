@@ -11,6 +11,7 @@
 
 // C++ System-Headers
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -159,6 +160,18 @@ class Tensor {
   bool kIsOwner;
   Shape shape;
 };
+
+std::ostream &operator<<(std::ostream &os, const llama2::Shape &shape) {
+  os << "(";
+  for (size_t i = 0; i < shape.GetRank(); i++) {
+    os << shape[i];
+    if (i != shape.GetRank() - 1) {
+      os << ", ";
+    }
+  }
+  os << ")";
+  return os;
+}
 
 }  // namespace llama2
 
