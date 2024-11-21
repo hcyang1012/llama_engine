@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 // Project Headers
@@ -92,8 +93,19 @@ class Tensor {
         kDataBytes(sizeof(T) * shape.GetSize()),
         kIsOwner(false),
         shape(shape) {}
-  explicit Tensor(const T *data, const size_t data_bytes)
-      : data(const_cast<T *>(data)), kDataBytes(data_bytes), kIsOwner(false) {}
+  Tensor(const Tensor<T> &other)
+      : data(other.data),
+        kDataBytes(other.GetDataBytesSize()),
+        kIsOwner(false),
+        shape(other.GetShape()) {}
+
+  std::string ToString() const {
+    std::stringstream ss;
+    for (size_t i = 0; i < shape.GetSize(); i++) {
+      ss << "[" << i << "]\t" << data[i] << std::endl;
+    }
+    return ss.str();
+  }
 
   /// @brief Destructor
   ~Tensor() {
@@ -132,11 +144,11 @@ class Tensor {
     this->shape = shape;
   }
 
-  std::shared_ptr<Tensor<T>> ReShape(const Shape &shape) {
+  Tensor<T> ReShape(const Shape &shape) const {
     if (shape.GetSize() != kDataBytes / sizeof(T)) {
       throw std::invalid_argument("Size of the shape does not match the data");
     }
-    return std::make_shared<Tensor<T>>(data, shape);
+    return Tensor<T>(data, shape);
   }
 
   const T *GetData() const { return data; }

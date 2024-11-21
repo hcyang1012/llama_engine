@@ -20,6 +20,7 @@ set(LLAMA2_LIB_SOURCES
 
 add_library(llama2_cpp_dummy_lib STATIC ${LLAMA2_LIB_SOURCES})
 target_include_directories(llama2_cpp_dummy_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(llama2_cpp_dummy_lib glog::glog)
 
 add_executable(llama2_cpp_dummy ${CMAKE_SOURCE_DIR}/main.cpp)
 target_include_directories(llama2_cpp_dummy PRIVATE ${CMAKE_SOURCE_DIR}/include)

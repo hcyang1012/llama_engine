@@ -73,7 +73,7 @@ TEST_F(RmsNormTest, ForwardTest) {
   llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer_->GetRunState().X()->GetData());
+            transformer_->GetRunState().X().GetData());
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -81,11 +81,11 @@ TEST_F(RmsNormTest, ForwardTest) {
     reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
                        ref_weights.rms_att_weight + layer * kDim, kDim);
 
-    llama2::RmsNorm<float>::Compute(transformer_->GetRunState().XB()->GetData(),
-                                    transformer_->GetRunState().X()->GetData(),
+    llama2::RmsNorm<float>::Compute(transformer_->GetRunState().X().GetData(),
                                     kWeights.RMSAttnWeight() + layer * kDim,
-                                    kDim);
+                                    kDim,
+                                    transformer_->GetRunState().XB().GetData());
     EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                           transformer_->GetRunState().XB()->GetData()));
+                           transformer_->GetRunState().XB().GetData()));
   }
 }

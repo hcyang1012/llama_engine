@@ -31,16 +31,76 @@ class TransformerWeights {
 
   const T *TokenEmbeddingTable() const { return token_embedding_table_; }
   const T *RMSAttnWeight() const { return rms_attn_weight_; }
+  const Tensor<T> RMSAttnWeight(const size_t layer) const {
+    return Tensor<T>(rms_attn_weight_ + layer * config.Dim(),
+                     {static_cast<size_t>(config.Dim())});
+  }
   const T *RMSFFNWeight() const { return rms_ffn_weight_; }
+  const Tensor<T> RMSFFNWeight(const size_t layer) const {
+    return Tensor<T>(rms_ffn_weight_ + layer * config.Dim(),
+                     {static_cast<size_t>(config.Dim())});
+  }
+
   const T *WQ() const { return wq_; }
+  const Tensor<T> WQ(const size_t layer) const {
+    return Tensor<T>(
+        wq_ + layer * config.Dim() * config.NumHeads() * config.HeadDim(),
+        {static_cast<size_t>(config.HeadDim()),
+         static_cast<size_t>(config.NumHeads()),
+         static_cast<size_t>(config.Dim())});
+  }
   const T *WK() const { return wk_; }
+  const Tensor<T> WK(const size_t layer) const {
+    return Tensor<T>(
+        wk_ + layer * config.Dim() * config.NumKVHeads() * config.HeadDim(),
+        {static_cast<size_t>(config.HeadDim()),
+         static_cast<size_t>(config.NumKVHeads()),
+         static_cast<size_t>(config.Dim())});
+  }
+
   const T *WV() const { return wv_; }
+  const Tensor<T> WV(const size_t layer) const {
+    return Tensor<T>(
+        wv_ + layer * config.Dim() * config.NumKVHeads() * config.HeadDim(),
+        {static_cast<size_t>(config.HeadDim()),
+         static_cast<size_t>(config.NumKVHeads()),
+         static_cast<size_t>(config.Dim())});
+  }
+
   const T *WO() const { return wo_; }
+  const Tensor<T> WO(const size_t layer) const {
+    return Tensor<T>(
+        wo_ + layer * config.NumHeads() * config.HeadDim() * config.Dim(),
+        {static_cast<size_t>(config.Dim()),
+         static_cast<size_t>(config.HeadDim()),
+         static_cast<size_t>(config.NumHeads())});
+  }
+
   const T *W1() const { return w1_; }
+  const Tensor<T> W1(const size_t layer) const {
+    return Tensor<T>(w1_ + layer * config.HiddenDim() * config.Dim(),
+                     {static_cast<size_t>(config.Dim()),
+                      static_cast<size_t>(config.HiddenDim())});
+  }
   const T *W2() const { return w2_; }
+  const Tensor<T> W2(const size_t layer) const {
+    return Tensor<T>(w2_ + layer * config.Dim() * config.HiddenDim(),
+                     {static_cast<size_t>(config.HiddenDim()),
+                      static_cast<size_t>(config.Dim())});
+  }
   const T *W3() const { return w3_; }
-  const T *RMSFinalWeight() const { return rms_final_weight_; }
-  const T *WCLS() const { return wcls_; }
+  const Tensor<T> W3(const size_t layer) const {
+    return Tensor<T>(w3_ + layer * config.HiddenDim() * config.Dim(),
+                     {static_cast<size_t>(config.Dim()),
+                      static_cast<size_t>(config.HiddenDim())});
+  }
+  const Tensor<T> RMSFinalWeight() const {
+    return Tensor<T>(rms_final_weight_, {static_cast<size_t>(config.Dim())});
+  }
+  const Tensor<T> WCLS() const {
+    return Tensor<T>(wcls_, {static_cast<size_t>(config.Dim()),
+                             static_cast<size_t>(config.VocabSize())});
+  }
 
  private:
   void load_weights(const T *p_weights, const bool shared_weights) {

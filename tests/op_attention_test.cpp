@@ -62,7 +62,7 @@ TEST_F(AttentionTest, ForwardTest) {
   llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer_->GetRunState().X()->GetData());
+            transformer_->GetRunState().X().GetData());
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -80,12 +80,13 @@ TEST_F(AttentionTest, ForwardTest) {
                          ref_weights.rms_att_weight + layer * kDim, kDim);
 
       llama2::RmsNorm<float>::Compute(
-          transformer_->GetRunState().XB()->GetData(),
-          transformer_->GetRunState().X()->GetData(),
-          kWeights.RMSAttnWeight() + layer * kDim, kDim);
+
+          transformer_->GetRunState().X().GetData(),
+          kWeights.RMSAttnWeight() + layer * kDim, kDim,
+          transformer_->GetRunState().XB().GetData());
 
       EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                             transformer_->GetRunState().XB()->GetData()));
+                             transformer_->GetRunState().XB().GetData()));
     }
 
     const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
@@ -106,28 +107,28 @@ TEST_F(AttentionTest, ForwardTest) {
                         ref_weights.wv + layer * kDim * kRefKVDim, kDim,
                         kRefKVDim);
 
-      transformer_->GetRunState().UpdateKV(layer, kPos);
       llama2::MatMul<float>::Compute(
-          transformer_->GetRunState().Q()->GetData(),
-          transformer_->GetRunState().XB()->GetData(),
-          kWeights.WQ() + layer * kDim * kDim, kDim, kDim);
+          kWeights.WQ(layer).ReShape(llama2::Shape({kDim, kDim})),
+          transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
+      auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
       llama2::MatMul<float>::Compute(
-          transformer_->GetRunState().K(),
-          transformer_->GetRunState().XB()->GetData(),
-          kWeights.WK() + layer * kDim * kKVDim, kDim, kKVDim);
+          kWeights.WK(layer).ReShape(llama2::Shape({kDim, kRefKVDim})),
+          transformer_->GetRunState().XB(), K);
 
+      auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
       llama2::MatMul<float>::Compute(
-          transformer_->GetRunState().V(),
-          transformer_->GetRunState().XB()->GetData(),
-          kWeights.WV() + layer * kDim * kKVDim, kDim, kKVDim);
+          kWeights.WV(layer).ReShape(llama2::Shape({kDim, kRefKVDim})),
+          transformer_->GetRunState().XB(), V);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q()->GetData()));
-      EXPECT_TRUE(std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
-                             transformer_->GetRunState().K()));
-      EXPECT_TRUE(std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
-                             transformer_->GetRunState().V()));
+                             transformer_->GetRunState().Q().GetData()));
+      EXPECT_TRUE(
+          std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
+                     transformer_->GetRunState().K(layer, kPos).GetData()));
+      EXPECT_TRUE(
+          std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
+                     transformer_->GetRunState().V(layer, kPos).GetData()));
     }
 
     const size_t kRefHeadSize = kDim / kRefConfig.n_heads;
@@ -151,12 +152,12 @@ TEST_F(AttentionTest, ForwardTest) {
         }
       }
 
-      llama2::RoPE::Compute(*(transformer_->GetRunState().Q()), kPos,
-                            transformer_->GetConfig(),
-                            *(transformer_->GetRunState().Q()), true);
+      llama2::RoPE<float>::Compute(transformer_->GetRunState().Q(), kPos,
+                                   transformer_->GetConfig(),
+                                   transformer_->GetRunState().Q(), true);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q()->GetData()));
+                             transformer_->GetRunState().Q().GetData()));
     }
 
     // Attention
@@ -164,6 +165,7 @@ TEST_F(AttentionTest, ForwardTest) {
       const size_t kPerHeadDim = kDim / transformer_->GetConfig().NumHeads();
       for (size_t header_idx = 0; header_idx < kRefConfig.n_heads;
            ++header_idx) {
+        const size_t kKVHeadIdx = header_idx / kRefConfig.n_kv_heads;
         float *q = ref_run_state.q + header_idx * kRefHeadSize;
         float *att = ref_run_state.att + header_idx * kRefConfig.seq_len;
 
@@ -191,26 +193,20 @@ TEST_F(AttentionTest, ForwardTest) {
           }
         }
 
-        auto Q =
-            llama2::Tensor<float>{transformer_->GetRunState().Q()->GetData(),
-                                  llama2::Shape({kPerHeadDim})};
-        auto K = llama2::Tensor<float>{
-            transformer_->GetRunState().K(),
-            llama2::Shape({kKVDim, static_cast<size_t>(
-                                       transformer_->GetConfig().SeqLen())})};
-        auto V = llama2::Tensor<float>{
-            transformer_->GetRunState().V(),
-            llama2::Shape({kKVDim, static_cast<size_t>(
-                                       transformer_->GetConfig().SeqLen())})};
-        auto output =
-            llama2::Tensor<float>{transformer_->GetRunState().XB()->GetData() +
-                                      header_idx * kPerHeadDim,
-                                  llama2::Shape({kPerHeadDim})};
+        auto Q = transformer_->GetRunState().Q(header_idx);
+        auto K = transformer_->GetRunState().K(layer);
+        auto V = transformer_->GetRunState().V(layer);
+
+        auto output = transformer_->GetRunState().XB(header_idx);
         llama2::Attention<float>::Compute(Q, K, V, transformer_->GetConfig(),
-                                          kPos, header_idx, output);
+                                          kPos, kKVHeadIdx, output);
 
         // Compare the output
-        EXPECT_TRUE(std::equal(xb, xb + kRefHeadSize, output.GetData()));
+        // The order of multiplication is changed in the SiLU implementation,
+        // resulting in a different output from the reference implementation.
+        // We need to use EXPECT_NEAR instead of EXPECT_TRUE(std::equal(...))
+        EXPECT_TRUE(std::equal(xb, xb + kRefHeadSize, output.GetData()))
+            << "Compare for header #" << header_idx << " failed.";
       }
     }
   }

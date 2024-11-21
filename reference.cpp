@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
+#include <fstream>
 extern "C" {
 namespace reference {
 // ----------------------------------------------------------------------------
@@ -347,7 +348,6 @@ float *forward(Transformer *transformer, int token, int pos) {
         }
       }
     }
-
     // final matmul to get the output of the attention
     matmul(s->xb2, s->xb, w->wo + l * dim * dim, dim, dim);
 
