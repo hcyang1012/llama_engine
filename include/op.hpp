@@ -30,11 +30,21 @@ class RmsNorm {
         << "Size of the input tensors should be the same";
     CHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
     Tensor<T> o(x.GetShape());
-    Compute(o.GetData(), x.GetData(), weight.GetData(), x.GetShape()[0]);
+    Compute(x.GetData(), weight.GetData(), x.GetShape()[0], o.GetData());
     return o;
   }
 
-  static void Compute(T* o, const T* x, const T* weight, const size_t size) {
+  static void Compute(const Tensor<T>& x, const Tensor<T>& weight,
+                      Tensor<T>& out) {
+    CHECK(x.GetShape() == weight.GetShape())
+        << "Size of the input tensors should be the same";
+    CHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
+    CHECK_EQ(out.GetShape(), x.GetShape())
+        << "Output tensor should have the same shape as the input tensor";
+    Compute(x.GetData(), weight.GetData(), x.GetShape()[0], out.GetData());
+  }
+
+  static void Compute(const T* x, const T* weight, const size_t size, T* o) {
     CHECK_GE(size, 0) << "Size should be greater than or equal to 0";
     // calculate sum of squares
     float sum = 0.0f;
@@ -55,22 +65,42 @@ class RmsNorm {
 template <typename T>
 class MatMul {
  public:
-  static Tensor<T> Compute(const Tensor<T>& left, const Tensor<T>& right) {
-    CHECK_EQ(left.GetShape()[1], right.GetShape()[0])
-        << "Inner dimensions should be the same";
-    CHECK_EQ(left.GetShape().GetRank(), 2)
-        << "Input tensor should be 2D tensor";
-    CHECK_EQ(right.GetShape()[1], 1) << "Input tensor should be vector";
-    Tensor<T> out(Shape({left.GetShape()[0]}));
+  // Weight : (d,n), Input : (n,1) -> Output : (d,1)
+  static void Compute(const Tensor<T>& weight, const Tensor<T>& input,
+                      Tensor<T>& out) {
+    // Shape[0] : number of cols, Shape[1] : number of rows
+    CHECK_EQ(weight.GetShape().GetRank(), 2)
+        << "Weight tensor should be 2D tensor";
+    CHECK_LE(input.GetShape().GetRank(), 2)
+        << "Input tensor should be 2D tensor or vector";
+    if (input.GetShape().GetRank() == 2) {
+      CHECK_EQ(input.GetShape()[1], 1) << "The last dimension should be 1 if "
+                                          "the input tensor is 2D tensor";
+      CHECK_EQ(weight.GetShape()[0], input.GetShape()[1])
+          << "Inner dimensions should be the same : " << weight.GetShape()[0]
+          << " " << input.GetShape()[1];
+    } else {
+      CHECK_EQ(weight.GetShape()[0], input.GetShape()[0])
+          << "Inner dimensions should be the same : " << weight.GetShape()[0]
+          << " " << input.GetShape()[0];
+    }
+    CHECK_LE(out.GetShape().GetRank(), 2)
+        << "Output tensor should be 2D tensor or vector";
 
-    // left : (n,d), right : (d,1) -> out : (n,1)
-    const size_t n = left.GetShape()[0];
-    const size_t d = left.GetShape()[1];
-    Compute(out.GetData(), left.GetData(), right.GetData(), n, d);
-    return out;
+    const auto& kOutShape = out.GetShape();
+    if (out.GetShape().GetRank() == 2) {
+      CHECK_EQ(kOutShape[1], weight.GetShape()[1]);
+    } else {
+      const Shape kExpectedShape({weight.GetShape()[1]});
+      CHECK_EQ(kOutShape, kExpectedShape)
+          << "Output tensor should have the shape of " << kExpectedShape;
+    }
+    Compute(weight.GetData(), input.GetData(), weight.GetShape()[0],
+            weight.GetShape()[1], out.GetData());
   }
-  static void Compute(T* out, const T* left, const T* right, const size_t n,
-                      const size_t d) {
+
+  static void Compute(const T* weight, const T* input, const size_t n,
+                      const size_t d, T* out) {
     CHECK_GE(n, 0) << "Size 'n' should be greater than or equal to 0";
     CHECK_GE(d, 0) << "Size 'd' should be greater than or equal to 0";
     // W (d,n) @ x (n,) -> xout (d,)
@@ -78,16 +108,17 @@ class MatMul {
     for (size_t i = 0; i < d; i++) {
       T val = static_cast<T>(0.0f);
       for (size_t j = 0; j < n; j++) {
-        val += right[i * n + j] * left[j];
+        val += weight[i * n + j] * input[j];
       }
       out[i] = val;
     }
   }
 };
 
+template <typename T>
 class RoPE {
  public:
-  static void Compute(const Tensor<float>& input, const size_t position,
+  static void Compute(const Tensor<T>& input, const size_t position,
                       const Config& config, Tensor<float>& output,
                       const bool overwrite = false) {
     CHECK_EQ(input.GetShape()[0], config.Dim())
@@ -193,14 +224,20 @@ class Attention {
     const size_t kKVHeadDim =
         (config.Dim() * config.NumKVHeads()) / config.NumHeads();
     CHECK_EQ(Q.GetShape()[0], kPerHeadDim);
-    CHECK_EQ(K.GetShape()[0], kKVHeadDim);
-    CHECK_EQ(V.GetShape()[0], kKVHeadDim);
+
+    CHECK_EQ(K.GetShape()[0], kPerHeadDim);
+    CHECK_EQ(K.GetShape()[1], config.NumKVHeads());
+    CHECK_EQ(V.GetShape()[2], config.SeqLen());
+
+    CHECK_EQ(V.GetShape()[0], kPerHeadDim);
+    CHECK_EQ(V.GetShape()[1], config.NumKVHeads());
+    CHECK_EQ(V.GetShape()[2], config.SeqLen());
 
     Tensor<T> attention_scores({pos + 1});
     for (size_t t = 0; t <= pos; ++t) {
       float score = 0.0f;
       for (size_t i = 0; i < kPerHeadDim; ++i) {
-        score += (Q[{i}] * K[{i, t}]);
+        score += (Q[{i}] * K[{i, header_idx, t}]);
       }
       score /= sqrtf(kPerHeadDim);
       attention_scores[{t}] = score;
@@ -214,12 +251,66 @@ class Attention {
               static_cast<T>(0));
     for (size_t t = 0; t <= pos; ++t) {
       for (size_t i = 0; i < kPerHeadDim; ++i) {
-        output[{i}] += (attention_scores[t] * V[{i, t}]);
+        output[{i}] += (attention_scores[t] * V[{i, header_idx, t}]);
       }
     }
   }
 
  private:
+};
+
+template <typename T>
+class ElementwiseAdd {
+ public:
+  static void Compute(const Tensor<T>& left, const Tensor<T>& right,
+                      Tensor<T>& output) {
+    CHECK_EQ(left.GetShape(), right.GetShape())
+        << "Input tensors should have the same shape";
+    CHECK_EQ(left.GetShape(), output.GetShape())
+        << "Output tensor should have the same shape as the input tensor";
+
+    const size_t size = left.GetShape().GetSize();
+    Compute(left.GetData(), right.GetData(), output.GetData(), size);
+  }
+
+  static void Compute(const T* left, const T* right, T* output,
+                      const size_t size) {
+    CHECK_GE(size, 0) << "Size should be greater than or equal to 0";
+    for (size_t i = 0; i < size; i++) {
+      output[i] = left[i] + right[i];
+    }
+  }
+
+ private:
+};
+
+template <typename T>
+class SiLU_EWMul {
+ public:
+  static void Compute(const Tensor<T>& input, const Tensor<T>& weight,
+                      Tensor<T>& output) {
+    CHECK_EQ(input.GetShape(), weight.GetShape())
+        << "Input tensors should have the same shape";
+    CHECK_EQ(input.GetShape(), output.GetShape())
+        << "Output tensor should have the same shape as the input tensor";
+
+    const size_t size = input.GetShape().GetSize();
+    Compute(input.GetData(), weight.GetData(), output.GetData(), size);
+  }
+
+ private:
+  static void Compute(const T* input, const T* weight, T* output,
+                      const size_t size) {
+    CHECK_GE(size, 0) << "Size should be greater than or equal to 0";
+    for (size_t i = 0; i < size; i++) {
+      // The multiplication order is changed in the SiLU implementation from the
+      // code in reference.cpp, so the output is different from the reference
+      // code.
+      output[i] =
+          static_cast<T>(input[i]) * static_cast<T>(weight[i]) *
+          static_cast<T>(1.0f / (1.0f + expf(-static_cast<float>(input[i]))));
+    }
+  }
 };
 
 }  // namespace llama2

@@ -228,8 +228,8 @@ TEST_F(WeightLoadTest, RMSFinalWeight) {
 
   // Contents of transformer_.weights.rms_final_weight should be equal to
   // contents of kWeights.rms_final_weight
-  EXPECT_TRUE(std::equal(p_rms_final_weight,
-                         p_rms_final_weight + kRMSFinalWeightSize,
+  EXPECT_TRUE(std::equal(p_rms_final_weight.GetData(),
+                         p_rms_final_weight.GetData() + kRMSFinalWeightSize,
                          ref_transformer_.weights.rms_final_weight));
 }
 
@@ -241,8 +241,8 @@ TEST_F(WeightLoadTest, WCLS) {
   const auto p_wcls = kWeights.WCLS();
   // Contents of transformer_.weights.wcls should be equal to
   // contents of kWeights.wcls
-  EXPECT_TRUE(
-      std::equal(p_wcls, p_wcls + kWCLSSize, ref_transformer_.weights.wcls));
+  EXPECT_TRUE(std::equal(p_wcls.GetData(), p_wcls.GetData() + kWCLSSize,
+                         ref_transformer_.weights.wcls));
 
   LOG(WARNING) << "The size of WSL is not checked yet.";
 }
@@ -280,14 +280,14 @@ TEST_F(RunStateAllocTest, AllocSizeTest) {
   const size_t kAttSize = kNumHeads * kSeqLen;
   const size_t kLogitsSize = kVocabSize;
 
-  EXPECT_EQ(run_state.X()->GetShape().GetSize(), kXSize);
-  EXPECT_EQ(run_state.XB()->GetShape().GetSize(), kXBSize);
-  EXPECT_EQ(run_state.XB2()->GetShape().GetSize(), kXB2Size);
-  EXPECT_EQ(run_state.HB()->GetShape().GetSize(), kHBSize);
-  EXPECT_EQ(run_state.HB2()->GetShape().GetSize(), kHB2Size);
-  EXPECT_EQ(run_state.Q()->GetShape().GetSize(), kQSize);
-  EXPECT_EQ(run_state.KeyCache()->GetShape().GetSize(), kKeyCacheSize);
-  EXPECT_EQ(run_state.ValueCache()->GetShape().GetSize(), kValueCacheSize);
-  EXPECT_EQ(run_state.Att()->GetShape().GetSize(), kAttSize);
-  EXPECT_EQ(run_state.Logits()->GetShape().GetSize(), kLogitsSize);
+  EXPECT_EQ(run_state.X().GetShape().GetSize(), kXSize);
+  EXPECT_EQ(run_state.XB().GetShape().GetSize(), kXBSize);
+  EXPECT_EQ(run_state.XB2().GetShape().GetSize(), kXB2Size);
+  EXPECT_EQ(run_state.HB().GetShape().GetSize(), kHBSize);
+  EXPECT_EQ(run_state.HB2().GetShape().GetSize(), kHB2Size);
+  EXPECT_EQ(run_state.Q().GetShape().GetSize(), kQSize);
+  EXPECT_EQ(run_state.KeyCache().GetShape().GetSize(), kKeyCacheSize);
+  EXPECT_EQ(run_state.ValueCache().GetShape().GetSize(), kValueCacheSize);
+  EXPECT_EQ(run_state.Att().GetShape().GetSize(), kAttSize);
+  EXPECT_EQ(run_state.Logits().GetShape().GetSize(), kLogitsSize);
 }

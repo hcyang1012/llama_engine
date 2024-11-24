@@ -17,7 +17,7 @@ class RopeTest : public ::testing::Test {
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
-  void reference_rope(const float* input, const int position, float* output) {
+  void reference_rope(const float *input, const int position, float *output) {
     const auto dim = transformer_->GetConfig().Dim();
     const auto kv_dim = (transformer_->GetConfig().Dim() *
                          transformer_->GetConfig().NumKVHeads()) /
@@ -68,7 +68,8 @@ TEST_F(RopeTest, Test) {
   }
 
   // Compute the output tensor using the RoPE operation
-  llama2::RoPE::Compute(input, position, transformer_->GetConfig(), output);
+  llama2::RoPE<float>::Compute(input, position, transformer_->GetConfig(),
+                               output);
   // Reference implementation
   std::vector<float> ref_output(transformer_->GetConfig().Dim());
   reference_rope(input.GetData(), position, ref_output.data());
@@ -101,8 +102,8 @@ TEST_F(RopeTest, OverWriteTest) {
   }
 
   // Compute the output tensor using the RoPE operation
-  llama2::RoPE::Compute(input, position, transformer_->GetConfig(), output,
-                        true);
+  llama2::RoPE<float>::Compute(input, position, transformer_->GetConfig(),
+                               output, true);
   // Reference implementation
   std::vector<float> ref_output(transformer_->GetConfig().Dim());
   reference_rope(input.GetData(), position, ref_output.data());
@@ -116,7 +117,7 @@ TEST_F(RopeTest, OverWriteTest) {
 TEST_F(RopeTest, ForwardTest) {
   const size_t kNumOfLayers = transformer_->GetConfig().NumLayers();
   const size_t kDim = transformer_->GetConfig().Dim();
-  const auto& kWeights = transformer_->GetWeights();
+  const auto &kWeights = transformer_->GetWeights();
 
   reference::Transformer ref_transformer;
   reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
@@ -129,11 +130,11 @@ TEST_F(RopeTest, ForwardTest) {
   llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer_->GetRunState().X()->GetData());
+            transformer_->GetRunState().X().GetData());
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
-  const auto& kRefConfig = ref_transformer.config;
+  const auto &kRefConfig = ref_transformer.config;
   const size_t kRefKVDim =
       (kRefConfig.dim * kRefConfig.n_kv_heads) / kRefConfig.n_heads;
 
@@ -147,22 +148,23 @@ TEST_F(RopeTest, ForwardTest) {
                          ref_weights.rms_att_weight + layer * kDim, kDim);
 
       llama2::RmsNorm<float>::Compute(
-          transformer_->GetRunState().XB()->GetData(),
-          transformer_->GetRunState().X()->GetData(),
-          kWeights.RMSAttnWeight() + layer * kDim, kDim);
+
+          transformer_->GetRunState().X().GetData(),
+          kWeights.RMSAttnWeight() + layer * kDim, kDim,
+          transformer_->GetRunState().XB().GetData());
 
       EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                             transformer_->GetRunState().XB()->GetData()));
+                             transformer_->GetRunState().XB().GetData()));
     }
+
+    const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
+    ref_run_state.k =
+        ref_run_state.key_cache + kRefLayerOffset + kPos * kRefKVDim;
+    ref_run_state.v =
+        ref_run_state.value_cache + kRefLayerOffset + kPos * kRefKVDim;
 
     // Calculate QKV
     {
-      const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
-      ref_run_state.k =
-          ref_run_state.key_cache + kRefLayerOffset + kPos * kRefKVDim;
-      ref_run_state.v =
-          ref_run_state.value_cache + kRefLayerOffset + kPos * kRefKVDim;
-
       // qkv matmuls for this position
       reference::matmul(ref_run_state.q, ref_run_state.xb,
                         ref_weights.wq + layer * kDim * kDim, kDim, kDim);
@@ -173,28 +175,28 @@ TEST_F(RopeTest, ForwardTest) {
                         ref_weights.wv + layer * kDim * kRefKVDim, kDim,
                         kRefKVDim);
 
-      transformer_->GetRunState().UpdateKV(layer, kPos);
       llama2::MatMul<float>::Compute(
-          transformer_->GetRunState().Q()->GetData(),
-          transformer_->GetRunState().XB()->GetData(),
-          kWeights.WQ() + layer * kDim * kDim, kDim, kDim);
+          kWeights.WQ(layer).ReShape(llama2::Shape({kDim, kDim})),
+          transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
+      auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
       llama2::MatMul<float>::Compute(
-          transformer_->GetRunState().K(),
-          transformer_->GetRunState().XB()->GetData(),
-          kWeights.WK() + layer * kDim * kKVDim, kDim, kKVDim);
+          kWeights.WK(layer).ReShape(llama2::Shape({kDim, kRefKVDim})),
+          transformer_->GetRunState().XB(), K);
 
+      auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
       llama2::MatMul<float>::Compute(
-          transformer_->GetRunState().V(),
-          transformer_->GetRunState().XB()->GetData(),
-          kWeights.WV() + layer * kDim * kKVDim, kDim, kKVDim);
+          kWeights.WV(layer).ReShape(llama2::Shape({kDim, kRefKVDim})),
+          transformer_->GetRunState().XB(), V);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q()->GetData()));
-      EXPECT_TRUE(std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
-                             transformer_->GetRunState().K()));
-      EXPECT_TRUE(std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
-                             transformer_->GetRunState().V()));
+                             transformer_->GetRunState().Q().GetData()));
+      EXPECT_TRUE(
+          std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
+                     transformer_->GetRunState().K(layer, kPos).GetData()));
+      EXPECT_TRUE(
+          std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
+                     transformer_->GetRunState().V(layer, kPos).GetData()));
     }
 
     const size_t kRefHeadSize = kDim / kRefConfig.n_heads;
@@ -209,7 +211,7 @@ TEST_F(RopeTest, ForwardTest) {
         int rotn =
             i < kRefKVDim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
         for (int v = 0; v < rotn; v++) {
-          float* vec = v == 0 ? ref_run_state.q
+          float *vec = v == 0 ? ref_run_state.q
                               : ref_run_state.k;  // the vector to rotate
           float v0 = vec[i];
           float v1 = vec[i + 1];
@@ -218,12 +220,12 @@ TEST_F(RopeTest, ForwardTest) {
         }
       }
 
-      llama2::RoPE::Compute(*(transformer_->GetRunState().Q()), kPos,
-                            transformer_->GetConfig(),
-                            *(transformer_->GetRunState().Q()), true);
+      llama2::RoPE<float>::Compute(transformer_->GetRunState().Q(), kPos,
+                                   transformer_->GetConfig(),
+                                   transformer_->GetRunState().Q(), true);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q()->GetData()));
+                             transformer_->GetRunState().Q().GetData()));
     }
   }
 }

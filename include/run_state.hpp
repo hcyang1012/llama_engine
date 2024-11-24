@@ -50,25 +50,115 @@ class RunState {
     }
   }
 
-  std::shared_ptr<Tensor<T>> X() { return x; }
-  std::shared_ptr<Tensor<T>> XB() { return xb; }
-  std::shared_ptr<Tensor<T>> XB2() { return xb2; }
-  std::shared_ptr<Tensor<T>> HB() { return hb; }
-  std::shared_ptr<Tensor<T>> HB2() { return hb2; }
-  std::shared_ptr<Tensor<T>> Q() { return q; }
-  void UpdateKV(const size_t layer, const size_t pos) {
-    const size_t kKVDims =
-        (config_.Dim() * config_.NumKVHeads()) / config_.NumHeads();
-    const size_t kLayerOffset = layer * config_.SeqLen() * kKVDims;
-    k = key_cache->GetData() + kLayerOffset + pos * kKVDims;
-    v = value_cache->GetData() + kLayerOffset + pos * kKVDims;
+  Tensor<T>& X() { return *x; }
+  Tensor<T>& XB() { return *xb; }
+  Tensor<T> XB(const size_t head_idx) {
+    CHECK_LT(head_idx, config_.NumHeads())
+        << "Head index should be less than the number of heads";
+
+    return Tensor<T>(xb->GetData() + head_idx * config_.HeadDim(),
+                     {static_cast<size_t>(config_.HeadDim())});
   }
-  T* K() { return k; }
-  T* V() { return v; }
-  std::shared_ptr<Tensor<T>> Att() { return att; }
-  std::shared_ptr<Tensor<T>> Logits() { return logits; }
-  std::shared_ptr<Tensor<T>> KeyCache() { return key_cache; }
-  std::shared_ptr<Tensor<T>> ValueCache() { return value_cache; }
+  Tensor<T>& XB2() { return *xb2; }
+  Tensor<T>& HB() { return *hb; }
+  Tensor<T>& HB2() { return *hb2; }
+  Tensor<T>& Q() { return *q; }
+  Tensor<T> Q(const size_t head_idx) {
+    CHECK_LT(head_idx, config_.NumHeads())
+        << "Head index should be less than the number of heads";
+
+    return Tensor<T>(Q().GetData() + head_idx * config_.HeadDim(),
+                     {static_cast<size_t>(config_.HeadDim())});
+  }
+
+  Tensor<T> K() {
+    return Tensor<T>(key_cache->GetData(),
+                     {static_cast<size_t>(config_.HeadDim()),
+                      static_cast<size_t>(config_.NumKVHeads()),
+                      static_cast<size_t>(config_.SeqLen()),
+                      static_cast<size_t>(config_.NumLayers())});
+  }
+  Tensor<T> K(const size_t layer) {
+    return Tensor<T>(key_cache->GetData() +
+                         (layer * (static_cast<size_t>(config_.HeadDim()) *
+                                   static_cast<size_t>(config_.NumKVHeads()) *
+                                   static_cast<size_t>(config_.SeqLen()))),
+                     {static_cast<size_t>(config_.HeadDim()),
+                      static_cast<size_t>(config_.NumKVHeads()),
+                      static_cast<size_t>(config_.SeqLen())});
+  }
+  Tensor<T> K(const size_t layer, const size_t pos) {
+    return Tensor<T>(key_cache->GetData() +
+                         (layer * (static_cast<size_t>(config_.HeadDim()) *
+                                   static_cast<size_t>(config_.NumKVHeads()) *
+                                   static_cast<size_t>(config_.SeqLen()))) +
+                         (pos * (static_cast<size_t>(config_.HeadDim()) *
+                                 static_cast<size_t>(config_.NumKVHeads()))),
+                     {static_cast<size_t>(config_.HeadDim()),
+                      static_cast<size_t>(config_.NumKVHeads())});
+  }
+
+  Tensor<T> K(const size_t layer, const size_t pos, const size_t head_idx) {
+    return Tensor<T>(key_cache->GetData() +
+                         (layer * (static_cast<size_t>(config_.HeadDim()) *
+                                   static_cast<size_t>(config_.NumKVHeads()) *
+                                   static_cast<size_t>(config_.SeqLen()))) +
+                         (pos * (static_cast<size_t>(config_.HeadDim()) *
+                                 static_cast<size_t>(config_.NumKVHeads()))) +
+                         (head_idx * (static_cast<size_t>(config_.HeadDim()))),
+                     {
+                         static_cast<size_t>(config_.HeadDim()),
+                     });
+  }
+
+  Tensor<T> V() {
+    return Tensor<T>(value_cache->GetData(),
+                     {static_cast<size_t>(config_.HeadDim()),
+                      static_cast<size_t>(config_.NumKVHeads()),
+                      static_cast<size_t>(config_.SeqLen()),
+                      static_cast<size_t>(config_.NumLayers())});
+  }
+  Tensor<T> V(const size_t layer) {
+    return Tensor<T>(value_cache->GetData() +
+                         (layer * (static_cast<size_t>(config_.HeadDim()) *
+                                   static_cast<size_t>(config_.NumKVHeads()) *
+                                   static_cast<size_t>(config_.SeqLen()))),
+                     {static_cast<size_t>(config_.HeadDim()),
+                      static_cast<size_t>(config_.NumKVHeads()),
+                      static_cast<size_t>(config_.SeqLen())});
+  }
+  Tensor<T> V(const size_t layer, const size_t pos) {
+    return Tensor<T>(value_cache->GetData() +
+                         (layer * (static_cast<size_t>(config_.HeadDim()) *
+                                   static_cast<size_t>(config_.NumKVHeads()) *
+                                   static_cast<size_t>(config_.SeqLen()))) +
+                         (pos * (static_cast<size_t>(config_.HeadDim()) *
+                                 static_cast<size_t>(config_.NumKVHeads()))),
+                     {static_cast<size_t>(config_.HeadDim()),
+                      static_cast<size_t>(config_.NumKVHeads())});
+  }
+
+  Tensor<T> V(const size_t layer, const size_t pos, const size_t head_idx) {
+    return Tensor<T>(value_cache->GetData() +
+                         (layer * (static_cast<size_t>(config_.HeadDim()) *
+                                   static_cast<size_t>(config_.NumKVHeads()) *
+                                   static_cast<size_t>(config_.SeqLen()))) +
+                         (pos * (static_cast<size_t>(config_.HeadDim()) *
+                                 static_cast<size_t>(config_.NumKVHeads()))) +
+                         (head_idx * (static_cast<size_t>(config_.HeadDim()))),
+                     {
+                         static_cast<size_t>(config_.HeadDim()),
+                     });
+  }
+
+  Tensor<T>& Att() { return *att; }
+  Tensor<T> Att(const size_t head_idx) {
+    return Tensor<T>(att->GetData() + head_idx * config_.SeqLen(),
+                     {static_cast<size_t>(config_.SeqLen())});
+  }
+  Tensor<T>& Logits() { return *logits; }
+  Tensor<T>& KeyCache() { return *key_cache; }
+  Tensor<T>& ValueCache() { return *value_cache; }
 
  private:
   const Config& config_;

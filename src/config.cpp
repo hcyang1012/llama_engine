@@ -27,6 +27,12 @@ int32_t Config::NumHeads() const { return kNumHeads; }
 
 int32_t Config::NumKVHeads() const { return kNumKVHeads; }
 
+int32_t Config::HeadDim() const { return kHeadDim; }
+
+int32_t Config::KVHeadDim() const { return kKVHeadDim; }
+
+int32_t Config::KVMul() const { return kKVMul; }
+
 int32_t Config::VocabSize() const { return kVocabSize; }
 
 int32_t Config::SeqLen() const { return kSeqLen; }
@@ -41,6 +47,9 @@ void Config::load_config(std::ifstream &config_file) {
   config_file.read(reinterpret_cast<char *>(&kSeqLen), sizeof(kSeqLen));
 
   kVocabSize = std::abs(VocabSize());
+  kKVHeadDim = Dim() * NumKVHeads() / NumHeads();
+  kHeadDim = Dim() / NumHeads();
+  kKVMul = NumHeads() / NumKVHeads();
 }
 
 size_t Config::Size() {
