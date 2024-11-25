@@ -14,6 +14,8 @@
 
 #include <cmath>
 #include <vector>
+// For numeric_limits
+#include <limits>
 // Project Headers
 
 #include "config.hpp"
@@ -311,6 +313,27 @@ class SiLU_EWMul {
           static_cast<T>(1.0f / (1.0f + expf(-static_cast<float>(input[i]))));
     }
   }
+};
+
+template <typename T>
+class ArgMax {
+ public:
+  static size_t Compute(const Tensor<T>& input) {
+    CHECK_EQ(input.GetShape().GetRank(), 1)
+        << "Input tensor should be 1D tensor";
+    const size_t kSize = input.GetShape()[0];
+    size_t max_idx = 0;
+    T max_val = input[0];
+    for (size_t i = 1; i < kSize; i++) {
+      if (input[i] > max_val) {
+        max_val = input[i];
+        max_idx = i;
+      }
+    }
+    return max_idx;
+  }
+
+ private:
 };
 
 }  // namespace llama2
