@@ -9,6 +9,7 @@
 // Project Headers
 #include <transformer.hpp>
 
+#include "reference.cpp"
 // Third-party Headers
 
 void error_usage(const std::string &program_name) {
@@ -111,11 +112,29 @@ int main(int argc, char *argv[]) {
   llama2::Tokenizer<float> tokenizer(tokenizer_path,
                                      transformer.GetConfig().VocabSize());
 
-  llama2::Sampler sampler(transformer.GetConfig().VocabSize(), temperature,
-                          topp, rng_seed);
-
   if (mode == "generate") {
-    transformer.Generate(tokenizer, prompt, steps);
+    {
+      reference::Transformer ref_transformer;
+      reference::build_transformer(&ref_transformer, checkpoint_path.c_str());
+
+      reference::Tokenizer ref_tokenizer;
+      reference::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
+                                 ref_transformer.config.vocab_size);
+
+      reference::Sampler sampler;
+      reference::build_sampler(&sampler, ref_transformer.config.vocab_size,
+                               temperature, topp, rng_seed);
+
+      std::cout << "Reference Generation:" << std::endl;
+      reference::generate(&ref_transformer, &ref_tokenizer, &sampler, prompt,
+                          steps);
+    }
+    std::cout << std::endl;
+    {
+      std::cout << "My Generation:" << std::endl;
+      transformer.Generate(tokenizer, prompt, steps);
+    }
+
   } else if (mode == "chat") {
     // transformer.Chat(tokenizer, sampler, steps, prompt, system_prompt);
   } else {
