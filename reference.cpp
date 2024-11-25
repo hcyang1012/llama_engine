@@ -657,8 +657,8 @@ typedef struct {
   float temperature;
   float topp;
   unsigned long long rng_state;
-} Sampler;
 
+} Sampler;
 int sample_argmax(float *probabilities, int n) {
   // return the index that has the highest probability
   int max_i = 0;
@@ -685,6 +685,7 @@ int sample_mult(float *probabilities, int n, float coin) {
   return n - 1;  // in case of rounding errors
 }
 
+// Sort in descending order
 int compare(const void *a, const void *b) {
   ProbIndex *a_ = (ProbIndex *)a;
   ProbIndex *b_ = (ProbIndex *)b;
