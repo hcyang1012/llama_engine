@@ -18,8 +18,8 @@
 #include <limits>
 // Project Headers
 
-#include "config.hpp"
-#include "tensor.hpp"
+#include <config.hpp>
+#include <tensor.hpp>
 
 // Third-party Headers
 
@@ -120,25 +120,17 @@ class MatMul {
 template <typename T>
 class RoPE {
  public:
-  static void Compute(const Tensor<T>& input, const size_t position,
-                      const Config& config, Tensor<float>& output,
-                      const bool overwrite = false) {
-    CHECK_EQ(input.GetShape()[0], config.Dim())
+  static void Compute(const size_t position, const Config& config,
+                      Tensor<float>& Q, Tensor<float>& K) {
+    CHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    if (overwrite) {
-      CHECK_EQ(output.GetShape()[0], config.Dim())
-          << "Output tensor should have the same dimension as the config";
-    } else {
-      output = Tensor<float>(input.GetShape());
-    }
-
-    compute(input.GetData(), position, config, output.GetData());
+    compute(position, config, Q.GetData(), K.GetData());
   }
 
  private:
-  static void compute(const float* input, const size_t position,
-                      const Config& config, float* output) {
+  static void compute(const size_t position, const Config& config, float* Q,
+                      float* K) {
     const size_t dim = config.Dim();
     const size_t kv_dim =
         (config.Dim() * config.NumKVHeads()) / config.NumHeads();
@@ -153,10 +145,11 @@ class RoPE {
       size_t rotn =
           i < kv_dim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
       for (size_t v = 0; v < rotn; v++) {
-        float v0 = input[i];
-        float v1 = input[i + 1];
-        output[i] = v0 * fcr - v1 * fci;
-        output[i + 1] = v0 * fci + v1 * fcr;
+        float* vec = v == 0 ? Q : K;
+        float v0 = vec[i];
+        float v1 = vec[i + 1];
+        vec[i] = v0 * fcr - v1 * fci;
+        vec[i + 1] = v0 * fci + v1 * fcr;
       }
     }
   }
@@ -188,16 +181,17 @@ class SoftMax {
 
   static void Compute(const T* input, float* output, const size_t size) {
     CHECK_GE(size, 0) << "Size should be greater than or equal to 0";
-    float sum = 0.0f;
-    float max_val = -std::numeric_limits<float>::infinity();
-    for (size_t i = 0; i < size; i++) {
+    float max_val = input[0];
+    for (size_t i = 1; i < size; i++) {
       max_val = std::max(max_val, static_cast<float>(input[i]));
     }
+    float sum = 0.0f;
     for (size_t i = 0; i < size; i++) {
-      sum += expf(static_cast<float>(input[i]) - max_val);
+      output[i] = expf(static_cast<float>(input[i]) - max_val);
+      sum += output[i];
     }
     for (size_t i = 0; i < size; i++) {
-      output[i] = expf(static_cast<float>(input[i]) - max_val) / sum;
+      output[i] /= sum;
     }
   }
 
@@ -252,8 +246,9 @@ class Attention {
     std::fill(output.GetData(), output.GetData() + output.GetShape().GetSize(),
               static_cast<T>(0));
     for (size_t t = 0; t <= pos; ++t) {
+      const float a = attention_scores[t];
       for (size_t i = 0; i < kPerHeadDim; ++i) {
-        output[{i}] += (attention_scores[t] * V[{i, header_idx, t}]);
+        output[{i}] += (a * V[{i, header_idx, t}]);
       }
     }
   }
@@ -305,12 +300,19 @@ class SiLU_EWMul {
                       const size_t size) {
     CHECK_GE(size, 0) << "Size should be greater than or equal to 0";
     for (size_t i = 0; i < size; i++) {
+#if 0
       // The multiplication order is changed in the SiLU implementation from the
       // code in reference.cpp, so the output is different from the reference
       // code.
       output[i] =
           static_cast<T>(input[i]) * static_cast<T>(weight[i]) *
           static_cast<T>(1.0f / (1.0f + expf(-static_cast<float>(input[i]))));
+#else
+      float val = static_cast<float>(input[i]);
+      val *= (1.0f / (1.0f + expf(-val)));
+      val *= static_cast<float>(weight[i]);
+      output[i] = static_cast<T>(val);
+#endif
     }
   }
 };

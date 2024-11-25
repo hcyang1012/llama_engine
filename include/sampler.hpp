@@ -16,10 +16,10 @@
 #include <memory>
 #include <vector>
 
-#include "op.hpp"
-#include "rng.hpp"
-#include "tensor.hpp"
 // Project Headers
+#include <op.hpp>
+#include <rng.hpp>
+#include <tensor.hpp>
 
 // Third-party Headers
 

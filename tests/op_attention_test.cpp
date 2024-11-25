@@ -151,13 +151,12 @@ TEST_F(AttentionTest, ForwardTest) {
           vec[i + 1] = v0 * fci + v1 * fcr;
         }
       }
+      auto Q = transformer_->GetRunState().Q();
+      auto K = transformer_->GetRunState().K(layer, kPos);
+      llama2::RoPE<float>::Compute(kPos, transformer_->GetConfig(), Q, K);
 
-      llama2::RoPE<float>::Compute(transformer_->GetRunState().Q(), kPos,
-                                   transformer_->GetConfig(),
-                                   transformer_->GetRunState().Q(), true);
-
-      EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q().GetData()));
+      EXPECT_TRUE(
+          std::equal(ref_run_state.q, ref_run_state.q + kDim, Q.GetData()));
     }
 
     // Attention
@@ -201,10 +200,6 @@ TEST_F(AttentionTest, ForwardTest) {
         llama2::Attention<float>::Compute(Q, K, V, transformer_->GetConfig(),
                                           kPos, kKVHeadIdx, output);
 
-        // Compare the output
-        // The order of multiplication is changed in the SiLU implementation,
-        // resulting in a different output from the reference implementation.
-        // We need to use EXPECT_NEAR instead of EXPECT_TRUE(std::equal(...))
         EXPECT_TRUE(std::equal(xb, xb + kRefHeadSize, output.GetData()))
             << "Compare for header #" << header_idx << " failed.";
       }

@@ -51,69 +51,6 @@ class RopeTest : public ::testing::Test {
   std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
 };
 
-TEST_F(RopeTest, Test) {
-  llama2::Tensor<float> input(
-      {static_cast<size_t>(transformer_->GetConfig().Dim())});
-  llama2::Tensor<float> output(
-      {static_cast<size_t>(transformer_->GetConfig().Dim())});
-
-  const int position = 0;
-
-  // Fill the input tensor with random values
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dis(0.0f, 1.0f);
-  for (size_t i = 0; i < input.GetShape()[0]; i++) {
-    input[i] = dis(gen);
-  }
-
-  // Compute the output tensor using the RoPE operation
-  llama2::RoPE<float>::Compute(input, position, transformer_->GetConfig(),
-                               output);
-  // Reference implementation
-  std::vector<float> ref_output(transformer_->GetConfig().Dim());
-  reference_rope(input.GetData(), position, ref_output.data());
-
-  // Compare the output tensors
-  for (size_t i = 0; i < output.GetShape()[0]; i++) {
-    EXPECT_FLOAT_EQ(output[i], ref_output[i]);
-  }
-}
-
-TEST_F(RopeTest, OverWriteTest) {
-  llama2::Tensor<float> input(
-      {static_cast<size_t>(transformer_->GetConfig().Dim())});
-  llama2::Tensor<float> output(
-      {static_cast<size_t>(transformer_->GetConfig().Dim())});
-
-  const int position = 0;
-
-  // Fill the input tensor with random values
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dis(0.0f, 1.0f);
-  for (size_t i = 0; i < input.GetShape()[0]; i++) {
-    input[i] = dis(gen);
-  }
-
-  // Fill the output tensor with random values
-  for (size_t i = 0; i < output.GetShape()[0]; i++) {
-    output[i] = dis(gen);
-  }
-
-  // Compute the output tensor using the RoPE operation
-  llama2::RoPE<float>::Compute(input, position, transformer_->GetConfig(),
-                               output, true);
-  // Reference implementation
-  std::vector<float> ref_output(transformer_->GetConfig().Dim());
-  reference_rope(input.GetData(), position, ref_output.data());
-
-  // Compare the output tensors
-  for (size_t i = 0; i < output.GetShape()[0]; i++) {
-    EXPECT_FLOAT_EQ(output[i], ref_output[i]);
-  }
-}
-
 TEST_F(RopeTest, ForwardTest) {
   const size_t kNumOfLayers = transformer_->GetConfig().NumLayers();
   const size_t kDim = transformer_->GetConfig().Dim();
@@ -219,10 +156,9 @@ TEST_F(RopeTest, ForwardTest) {
           vec[i + 1] = v0 * fci + v1 * fcr;
         }
       }
-
-      llama2::RoPE<float>::Compute(transformer_->GetRunState().Q(), kPos,
-                                   transformer_->GetConfig(),
-                                   transformer_->GetRunState().Q(), true);
+      auto Q = transformer_->GetRunState().Q();
+      auto K = transformer_->GetRunState().K(0, kPos);
+      llama2::RoPE<float>::Compute(kPos, transformer_->GetConfig(), Q, K);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
                              transformer_->GetRunState().Q().GetData()));
