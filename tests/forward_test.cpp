@@ -66,8 +66,11 @@ TEST_F(ForwardTest, Test) {
     auto logits = transformer_->Forward(result[0], 0);
 
     // Float comparison of logits
-    for (size_t i = 0; i < logits.GetShape().GetSize(); i++) {
-      EXPECT_NEAR(logits.GetData()[i], ref_logits[i], 1e-4);
-    }
+    // for (size_t i = 0; i < logits.GetShape().GetSize(); i++) {
+    //   EXPECT_NEAR(logits.GetData()[i], ref_logits[i], 1e-4);
+    // }
+    EXPECT_TRUE(std::equal(logits.GetData(),
+                           logits.GetData() + logits.GetShape().GetSize(),
+                           ref_logits));
   }
 }

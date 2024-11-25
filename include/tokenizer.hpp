@@ -23,6 +23,14 @@
 // Third-party Headers
 
 namespace llama2 {
+
+enum SpecialTokens : int {
+  UNK_00 = 0,
+  BOS_01 = 1,
+  EOS_02 = 2,
+  NUM_SPECIAL_TOKENS = 3
+};
+
 template <typename T>
 class Tokenizer {
  public:

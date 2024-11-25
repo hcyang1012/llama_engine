@@ -13,12 +13,14 @@
 #include <unistd.h>
 
 // C++ System-Headers
+#include <chrono>
 #include <cstddef>
 #include <fstream>
 #include <memory>
 
 // Project Headers
 #include <config.hpp>
+#include <decoder.hpp>
 #include <encoder.hpp>
 #include <op.hpp>
 #include <run_state.hpp>
@@ -26,6 +28,7 @@
 #include <tensor.hpp>
 #include <tokenizer.hpp>
 #include <weights.hpp>
+
 // Third-party Headers
 
 namespace llama2 {
@@ -33,7 +36,22 @@ namespace llama2 {
 template <typename T>
 class Transformer {
  public:
-  Transformer(const std::string &ckpt_file) { load_checkpoint(ckpt_file); }
+  struct RunConfig {
+    float temperature = 1.0f;
+    float topp = 0.9f;
+    unsigned long long rng_seed = 0;
+  };
+
+  Transformer(const std::string &ckpt_file, const RunConfig &run_config)
+      : run_config_(run_config) {
+    load_checkpoint(ckpt_file);
+    sampler_ =
+        std::make_unique<Sampler>(config_->VocabSize(), run_config_.temperature,
+                                  run_config_.topp, run_config_.rng_seed);
+  }
+
+  Transformer(const std::string &ckpt_file)
+      : Transformer(ckpt_file, run_config_) {}
   ~Transformer() {}
 
   const auto &GetConfig() const { return *config_; }
@@ -42,17 +60,52 @@ class Transformer {
 
   auto &GetRunState() { return *run_state_; }
 
-  void Generate(const Tokenizer<T> &tokenizer, const Sampler &sampler,
-                const std::string &prompt, const size_t steps) {
-    const auto encoder = Encoder<T>(tokenizer, prompt, true, true);
+  std::string Generate(const Tokenizer<T> &tokenizer, const std::string &prompt,
+                       const size_t steps, const bool print = true) {
+    std::stringstream ss;
+    const auto encoder = Encoder<T>(tokenizer, prompt, true, false);
     const auto &prompt_tokens = encoder.PromptTokens();
 
     auto token = prompt_tokens[0];
     size_t pos = 0;
+    int next;
+    bool is_first = true;
+    auto start_time = std::chrono::high_resolution_clock::now();
     while (pos < steps) {
-      // forward(token, pos);
+      auto logits = Forward(token, pos);
+      if (pos < prompt_tokens.size() - 1) {
+        // Prefill stage
+        next = prompt_tokens[pos + 1];
+      } else {
+        // Generation stage
+        next = sampler_->Sample(logits);
+      }
       pos++;
+
+      if (next == SpecialTokens::BOS_01) {
+        break;
+      }
+
+      auto piece = Decoder<T>::Decode(tokenizer, token, next);
+      safe_print(piece, ss, print);
+      token = next;
+      // ignore the first token for time calculation to ignore the warm-up time
+      if (is_first) {
+        start_time = std::chrono::high_resolution_clock::now();
+        is_first = false;
+      }
     }
+    if (pos > 1) {
+      auto end_time = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+          end_time - start_time);
+      if (print == true) {
+        std::cout << std::endl;
+        std::cout << "Average tok/s: "
+                  << (pos - 1) / (double)(duration.count() / 1000) << std::endl;
+      }
+    }
+    return ss.str();
   }
 
   const Tensor<T> Forward(const size_t token, const size_t pos) {
@@ -91,7 +144,8 @@ class Transformer {
       // RoPE
       {
         auto &Q = run_state_->Q();
-        RoPE<T>::Compute(Q, pos, *config_, Q, true);
+        auto K = run_state_->K(layer, pos).ReShape({kKVDim});
+        RoPE<T>::Compute(pos, *config_, Q, K);
       }
 
       // Multi-Head Attention
@@ -202,10 +256,25 @@ class Transformer {
     weights_ = std::make_unique<TransformerWeights<T>>(*config_, weights_ptr);
   }
 
+  void safe_print(const std::string &str, std::ostream &os, const bool print) {
+    if (str.size() > 0) {
+      unsigned char byte = str[0];
+      if (std::isprint(byte) || std::isspace(byte)) {
+        os << str;
+        if (print) {
+          std::cout << str;
+        }
+      }
+    }
+  }
+
   std::unique_ptr<Config> config_;  ///< Hyperparameters of the Transformer
   std::unique_ptr<TransformerWeights<T>>
       weights_;                             ///< Weights of the Transformer
   std::unique_ptr<RunState<T>> run_state_;  ///< Run state of the Transformer
+  const RunConfig run_config_ = {1.0f, 0.9f, 0};  ///< Run configuration of
+                                                  ///< the Transformer
+  std::unique_ptr<Sampler> sampler_;  ///< Sampler for the Transformer
 
   int fd_;             // file descriptor for the memory mapped file
   ssize_t file_size_;  // size of the memory mapped file

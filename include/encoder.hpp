@@ -15,7 +15,7 @@
 #include <sstream>
 
 // Project Headers
-#include "tokenizer.hpp"
+#include <tokenizer.hpp>
 
 // Third-party Headers
 
@@ -35,12 +35,6 @@ class Encoder {
  private:
   // private members
 
-  enum SpecialTokens : int {
-    UNK_00 = 0,
-    BOS_01 = 1,
-    EOS_02 = 2,
-    NUM_SPECIAL_TOKENS = 3
-  };
   const Tokenizer<T>& tokenizer_;
   const std::string prompt_;
 
