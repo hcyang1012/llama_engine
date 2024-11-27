@@ -60,7 +60,8 @@ class Config {
                                ///< Transformer (kDim / kNumHeads)
   llama_uint32_t kKVHeadDim;   ///< Dimension of each key and value head in the
                                ///< Transformer (kDim * kNumKVHeads / kNumHeads)
-  llama_uint32_t kKVMul;
+  llama_uint32_t
+      kKVMul;  /// Number of heads for key and value per head for query
   llama_uint32_t kVocabSize;  ///< Size of the vocabulary
   llama_uint32_t kSeqLen;     ///< Maximum sequence length
 };

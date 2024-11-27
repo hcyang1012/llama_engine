@@ -24,24 +24,24 @@ class RunState {
  public:
   RunState(const Config& config) : config_(config) {
     size_t kKVDims = (config.Dim() * config.NumKVHeads()) / config.NumHeads();
-    x = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
-    xb = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
-    xb2 = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
-    hb = std::make_shared<Tensor<T>>(
+    x = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    xb = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    xb2 = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    hb = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.HiddenDim())});
-    hb2 = std::make_shared<Tensor<T>>(
+    hb2 = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.HiddenDim())});
-    q = std::make_shared<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
-    key_cache = std::make_shared<Tensor<T>>(
+    q = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    key_cache = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.NumLayers()),
               static_cast<size_t>(config.SeqLen()), kKVDims});
-    value_cache = std::make_shared<Tensor<T>>(
+    value_cache = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.NumLayers()),
               static_cast<size_t>(config.SeqLen()), kKVDims});
-    att = std::make_shared<Tensor<T>>(
+    att = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.NumHeads()),
               static_cast<size_t>(config.SeqLen())});
-    logits = std::make_shared<Tensor<T>>(
+    logits = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.VocabSize())});
 
     if (!x || !xb || !xb2 || !hb || !hb2 || !q || !key_cache || !value_cache ||
@@ -53,7 +53,7 @@ class RunState {
   Tensor<T>& X() { return *x; }
   Tensor<T>& XB() { return *xb; }
   Tensor<T> XB(const size_t head_idx) {
-    CHECK_LT(head_idx, config_.NumHeads())
+    DCHECK_LT(head_idx, config_.NumHeads())
         << "Head index should be less than the number of heads";
 
     return Tensor<T>(xb->GetData() + head_idx * config_.HeadDim(),
@@ -64,7 +64,7 @@ class RunState {
   Tensor<T>& HB2() { return *hb2; }
   Tensor<T>& Q() { return *q; }
   Tensor<T> Q(const size_t head_idx) {
-    CHECK_LT(head_idx, config_.NumHeads())
+    DCHECK_LT(head_idx, config_.NumHeads())
         << "Head index should be less than the number of heads";
 
     return Tensor<T>(Q().GetData() + head_idx * config_.HeadDim(),
@@ -162,23 +162,21 @@ class RunState {
 
  private:
   const Config& config_;
-  std::shared_ptr<Tensor<T>> x;   ///< activation at current time stamp (dim,)
-  std::shared_ptr<Tensor<T>> xb;  ///< same, but inside a residual branch (dim,)
-  std::shared_ptr<Tensor<T>>
+  std::unique_ptr<Tensor<T>> x;   ///< activation at current time stamp (dim,)
+  std::unique_ptr<Tensor<T>> xb;  ///< same, but inside a residual branch (dim,)
+  std::unique_ptr<Tensor<T>>
       xb2;  ///< an additional buffer just for convenience (dim,)
-  std::shared_ptr<Tensor<T>>
+  std::unique_ptr<Tensor<T>>
       hb;  ///< buffer for hidden dimension in the ffn (hidden_dim,)
-  std::shared_ptr<Tensor<T>>
+  std::unique_ptr<Tensor<T>>
       hb2;  ///< buffer for hidden dimension in the ffn (hidden_dim,)
-  std::shared_ptr<Tensor<T>> q;  ///< query (dim,)
-  T* k;                          ///< key (dim,), Pointer to the key cache
-  T* v;                          ///< value (dim,), Pointer to the value cache
-  std::shared_ptr<Tensor<T>>
+  std::unique_ptr<Tensor<T>> q;  ///< query (dim,)
+  std::unique_ptr<Tensor<T>>
       att;  ///< buffer for scores/attention values (n_heads, seq_len)
-  std::shared_ptr<Tensor<T>> logits;  ///< output logits
+  std::unique_ptr<Tensor<T>> logits;  ///< output logits
   ///< kv cache
-  std::shared_ptr<Tensor<T>> key_cache;    ///< (layer, seq_len, dim)
-  std::shared_ptr<Tensor<T>> value_cache;  ///< (layer, seq_len, dim)
+  std::unique_ptr<Tensor<T>> key_cache;    ///< (layer, seq_len, dim)
+  std::unique_ptr<Tensor<T>> value_cache;  ///< (layer, seq_len, dim)
 };
 
 }  // namespace llama2
