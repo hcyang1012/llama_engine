@@ -17,7 +17,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 template <typename T>
 class RunState {
@@ -179,4 +179,4 @@ class RunState {
   std::unique_ptr<Tensor<T>> value_cache;  ///< (layer, seq_len, dim)
 };
 
-}  // namespace llama2
+}  // namespace llama

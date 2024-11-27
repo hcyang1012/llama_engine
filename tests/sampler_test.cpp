@@ -7,7 +7,9 @@
 #include <string>
 #include <vector>
 
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 #include "tensor.hpp"
 #include "transformer.hpp"
 class SamplerTest : public ::testing::Test {
@@ -16,11 +18,11 @@ class SamplerTest : public ::testing::Test {
   void SetUp() override {
     // code here will execute just before the test ensues
     build_transformer(&ref_transformer_, kChkPointPath.c_str());
-    transformer_ = std::make_unique<llama2::Transformer<float>>(kChkPointPath);
+    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
 
     build_sampler(&ref_sampler_, ref_transformer_.config.vocab_size,
                   kTemperature, kTopP, kRngSeed);
-    sampler_ = std::make_unique<llama2::Sampler>(
+    sampler_ = std::make_unique<llama::Sampler>(
         transformer_->GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed);
   }
 
@@ -34,8 +36,8 @@ class SamplerTest : public ::testing::Test {
   const float kTopP = 0.9f;
   const uint64_t kRngSeed = 0;
 
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::Sampler> sampler_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Sampler> sampler_;
 
   reference::Transformer ref_transformer_;
   reference::Sampler ref_sampler_;
@@ -65,10 +67,10 @@ TEST_F(SamplerTest, ProbIdxSortTest) {
   std::mt19937 gen(rd());
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
-  std::vector<llama2::Sampler::ProbIdx> prob_indices;
+  std::vector<llama::Sampler::ProbIdx> prob_indices;
   for (int i = 0; i < 10; i++) {
     input.push_back(dis(gen));
-    llama2::Sampler::ProbIdx prob_idx;
+    llama::Sampler::ProbIdx prob_idx;
     prob_idx.prob = input[i];
     prob_idx.idx = i;
     prob_indices.push_back(prob_idx);
@@ -103,7 +105,7 @@ TEST_F(SamplerTest, SampleTest) {
     logits.push_back(dis(gen));
   }
 
-  llama2::Tensor<float> logits_tensor(logits.data(), {kNumOfLogits});
+  llama::Tensor<float> logits_tensor(logits.data(), {kNumOfLogits});
   const int kNext = sampler_->Sample(logits_tensor);
 
   int ref_next = sample(&ref_sampler_, logits.data());

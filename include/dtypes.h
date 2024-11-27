@@ -2,7 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-namespace llama2 {
+namespace llama {
 using llama_size_t = std::size_t;
 
 // signed integer types
@@ -17,4 +17,4 @@ using llama_uint64_t = uint64_t;
 
 using llama_float = float;
 
-}  // namespace llama2
+}  // namespace llama

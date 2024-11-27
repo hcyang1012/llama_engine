@@ -23,7 +23,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 template <typename T>
 class RmsNorm {
  public:
@@ -339,4 +339,4 @@ class ArgMax {
  private:
 };
 
-}  // namespace llama2
+}  // namespace llama

@@ -14,7 +14,7 @@
 #include <config.hpp>
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 Config::Config(std::ifstream &config_file) { load_config(config_file); }
 
@@ -59,4 +59,4 @@ size_t Config::Size() {
          sizeof(kSeqLen);
 }
 
-}  // namespace llama2
+}  // namespace llama

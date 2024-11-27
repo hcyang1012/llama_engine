@@ -5,7 +5,9 @@
 
 #include "encoder.hpp"
 #include "op.hpp"
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
@@ -18,16 +20,16 @@ class RmsNormTest : public ::testing::Test {
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
     const size_t kSize = 4;
-    x_ = std::make_unique<llama2::Tensor<float>>(llama2::Shape({kSize}));
-    weight_ = std::make_unique<llama2::Tensor<float>>(llama2::Shape({kSize}));
+    x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}));
+    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}));
 
     for (size_t i = 0; i < kSize; i++) {
       (*x_)[i] = dis(gen);
       (*weight_)[i] = dis(gen);
     }
 
-    transformer_ = std::make_unique<llama2::Transformer<float>>(kChkPointPath);
-    tokenizer_ = std::make_unique<llama2::Tokenizer<float>>(
+    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
@@ -36,20 +38,20 @@ class RmsNormTest : public ::testing::Test {
     // ok to through exceptions from here if need be
   }
 
-  std::unique_ptr<llama2::Tensor<float>> x_;
-  std::unique_ptr<llama2::Tensor<float>> weight_;
+  std::unique_ptr<llama::Tensor<float>> x_;
+  std::unique_ptr<llama::Tensor<float>> weight_;
 
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 };
 
 TEST_F(RmsNormTest, RmsNormTest) {
   const size_t kSize = 4;
   std::vector<float> expected_o(kSize);
-  auto actual = llama2::RmsNorm<float>::Compute(*x_, *weight_);
+  auto actual = llama::RmsNorm<float>::Compute(*x_, *weight_);
   reference::rmsnorm(expected_o.data(), x_->GetData(), weight_->GetData(),
                      kSize);
 
@@ -70,7 +72,7 @@ TEST_F(RmsNormTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
+  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
             transformer_->GetRunState().X().GetData());
@@ -81,10 +83,10 @@ TEST_F(RmsNormTest, ForwardTest) {
     reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
                        ref_weights.rms_att_weight + layer * kDim, kDim);
 
-    llama2::RmsNorm<float>::Compute(transformer_->GetRunState().X().GetData(),
-                                    kWeights.RMSAttnWeight() + layer * kDim,
-                                    kDim,
-                                    transformer_->GetRunState().XB().GetData());
+    llama::RmsNorm<float>::Compute(transformer_->GetRunState().X().GetData(),
+                                   kWeights.RMSAttnWeight() + layer * kDim,
+                                   kDim,
+                                   transformer_->GetRunState().XB().GetData());
     EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
                            transformer_->GetRunState().XB().GetData()));
   }

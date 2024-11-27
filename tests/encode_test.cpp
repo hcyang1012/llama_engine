@@ -4,7 +4,9 @@
 #include <string>
 
 #include "encoder.hpp"
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 
@@ -17,8 +19,8 @@ class EncodeTest : public ::testing::Test {
     reference::build_tokenizer(&ref_tokenizer_, kTokenizerBinPath.c_str(),
                                ref_transformer_.config.vocab_size);
 
-    transformer_ = std::make_unique<llama2::Transformer<float>>(kChkPointPath);
-    tokenizer_ = std::make_unique<llama2::Tokenizer<float>>(
+    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
@@ -30,8 +32,8 @@ class EncodeTest : public ::testing::Test {
   reference::Transformer ref_transformer_;
   reference::Tokenizer ref_tokenizer_;
 
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
@@ -47,7 +49,7 @@ TEST_F(EncodeTest, SampleText) {
   reference::encode(&ref_tokenizer_, kPrompt.c_str(), 1, 0, prompt_tokens,
                     &num_prompt_tokens);
   EXPECT_GE(num_prompt_tokens, 1);
-  auto encoder = llama2::Encoder<float>(*tokenizer_, kPrompt, true, false);
+  auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false);
   auto result = encoder.PromptTokens();
   EXPECT_TRUE(std::equal(prompt_tokens, prompt_tokens + num_prompt_tokens,
                          result.data()));

@@ -21,7 +21,7 @@
 // Third-party Headers
 #include <glog/logging.h>
 
-namespace llama2 {
+namespace llama {
 
 constexpr int MAX_DIM = 4;  ///< Maximum number of dimensions
 
@@ -205,7 +205,7 @@ class Tensor {
   Shape shape;
 };
 
-std::ostream &operator<<(std::ostream &os, const llama2::Shape &shape) {
+std::ostream &operator<<(std::ostream &os, const llama::Shape &shape) {
   os << "(";
   for (size_t i = 0; i < shape.GetRank(); i++) {
     os << shape[i];
@@ -217,9 +217,9 @@ std::ostream &operator<<(std::ostream &os, const llama2::Shape &shape) {
   return os;
 }
 
-}  // namespace llama2
+}  // namespace llama
 
-bool operator==(const llama2::Shape &lhs, const llama2::Shape &rhs) {
+bool operator==(const llama::Shape &lhs, const llama::Shape &rhs) {
   if (lhs.GetRank() != rhs.GetRank()) {
     return false;
   }

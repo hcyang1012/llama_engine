@@ -22,7 +22,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 enum SpecialTokens : int {
   UNK_00 = 0,
@@ -85,4 +85,4 @@ class Tokenizer {
     }
   }
 };
-}  // namespace llama2
+}  // namespace llama

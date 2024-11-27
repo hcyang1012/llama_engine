@@ -5,15 +5,17 @@
 
 #include "encoder.hpp"
 #include "op.hpp"
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
 class RopeTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    transformer_ = std::make_unique<llama2::Transformer<float>>(kChkPointPath);
-    tokenizer_ = std::make_unique<llama2::Tokenizer<float>>(
+    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
@@ -41,14 +43,14 @@ class RopeTest : public ::testing::Test {
 
   void TearDown() override {}
 
-  std::unique_ptr<llama2::Tensor<float>> x_;
-  std::unique_ptr<llama2::Tensor<float>> weight_;
+  std::unique_ptr<llama::Tensor<float>> x_;
+  std::unique_ptr<llama::Tensor<float>> weight_;
 
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 };
 
 TEST_F(RopeTest, ForwardTest) {
@@ -64,7 +66,7 @@ TEST_F(RopeTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
+  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
             transformer_->GetRunState().X().GetData());
@@ -84,7 +86,7 @@ TEST_F(RopeTest, ForwardTest) {
       reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
                          ref_weights.rms_att_weight + layer * kDim, kDim);
 
-      llama2::RmsNorm<float>::Compute(
+      llama::RmsNorm<float>::Compute(
 
           transformer_->GetRunState().X().GetData(),
           kWeights.RMSAttnWeight() + layer * kDim, kDim,
@@ -112,18 +114,18 @@ TEST_F(RopeTest, ForwardTest) {
                         ref_weights.wv + layer * kDim * kRefKVDim, kDim,
                         kRefKVDim);
 
-      llama2::MatMul<float>::Compute(
-          kWeights.WQ(layer).ReShape(llama2::Shape({kDim, kDim})),
+      llama::MatMul<float>::Compute(
+          kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
           transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
       auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
-      llama2::MatMul<float>::Compute(
-          kWeights.WK(layer).ReShape(llama2::Shape({kDim, kRefKVDim})),
+      llama::MatMul<float>::Compute(
+          kWeights.WK(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer_->GetRunState().XB(), K);
 
       auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
-      llama2::MatMul<float>::Compute(
-          kWeights.WV(layer).ReShape(llama2::Shape({kDim, kRefKVDim})),
+      llama::MatMul<float>::Compute(
+          kWeights.WV(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer_->GetRunState().XB(), V);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
@@ -158,7 +160,7 @@ TEST_F(RopeTest, ForwardTest) {
       }
       auto Q = transformer_->GetRunState().Q();
       auto K = transformer_->GetRunState().K(0, kPos);
-      llama2::RoPE<float>::Compute(kPos, transformer_->GetConfig(), Q, K);
+      llama::RoPE<float>::Compute(kPos, transformer_->GetConfig(), Q, K);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
                              transformer_->GetRunState().Q().GetData()));

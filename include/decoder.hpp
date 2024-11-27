@@ -18,7 +18,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 template <typename T>
 class Decoder {
  public:
@@ -46,4 +46,4 @@ class Decoder {
 
  private:
 };
-}  // namespace llama2
+}  // namespace llama

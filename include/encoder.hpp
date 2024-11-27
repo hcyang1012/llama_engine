@@ -19,7 +19,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 template <typename T>
 class Encoder {
@@ -160,4 +160,4 @@ class Encoder {
     }
   }
 };
-}  // namespace llama2
+}  // namespace llama

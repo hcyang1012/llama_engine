@@ -11,7 +11,9 @@
 
 #include <transformer.hpp>
 
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 // Third-party Headers
 
 void error_usage(const std::string &program_name) {
@@ -39,10 +41,10 @@ int main(int argc, char *argv[]) {
       1.0f;  // 0.0 = greedy deterministic. 1.0 = original. don't set higher
   float topp =
       0.9f;  // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-  llama2::llama_uint32_t steps = 256;  // number of steps to run for
-  char *prompt = NULL;                 // prompt string
-  unsigned long long rng_seed = 0;     // seed rng with time by default
-  std::string mode("generate");        // mode to run in
+  llama::llama_uint32_t steps = 256;  // number of steps to run for
+  char *prompt = NULL;                // prompt string
+  unsigned long long rng_seed = 0;    // seed rng with time by default
+  std::string mode("generate");       // mode to run in
   char *system_prompt =
       NULL;  // the (optional) system prompt to use in chat mode
 
@@ -100,19 +102,19 @@ int main(int argc, char *argv[]) {
     steps = 0;
   }
 
-  const llama2::Transformer<float>::RunConfig run_config = {temperature, topp,
-                                                            rng_seed};
+  const llama::Transformer<float>::RunConfig run_config = {temperature, topp,
+                                                           rng_seed};
 
   // build the Transformer via the model .bin file
-  llama2::Transformer<float> transformer(checkpoint_path, run_config);
+  llama::Transformer<float> transformer(checkpoint_path, run_config);
   if (steps == 0) {
     steps = transformer.GetConfig().SeqLen();
   }
 
   steps = std::min(steps, transformer.GetConfig().SeqLen());
 
-  llama2::Tokenizer<float> tokenizer(tokenizer_path,
-                                     transformer.GetConfig().VocabSize());
+  llama::Tokenizer<float> tokenizer(tokenizer_path,
+                                    transformer.GetConfig().VocabSize());
 
   if (mode == "generate") {
     {

@@ -3,7 +3,9 @@
 
 #include <algorithm>
 
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 #include "transformer.hpp"
 class LoaderTest : public ::testing::Test {
  public:
@@ -11,8 +13,7 @@ class LoaderTest : public ::testing::Test {
   void SetUp() override {
     // code here will execute just before the test ensues
     reference::build_transformer(&ref_transformer_, kCheckPointPath.c_str());
-    transformer_ =
-        std::make_unique<llama2::Transformer<float>>(kCheckPointPath);
+    transformer_ = std::make_unique<llama::Transformer<float>>(kCheckPointPath);
   }
 
   void TearDown() override {
@@ -21,7 +22,7 @@ class LoaderTest : public ::testing::Test {
   }
 
   reference::Transformer ref_transformer_;
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
 
   const std::string kCheckPointPath = "stories15M.bin";
 };
@@ -45,7 +46,7 @@ int n_kv_heads;  // number of key/value heads (can be < query heads because of
 int vocab_size;  // vocabulary size, usually 256 (byte-level)
 int seq_len;     // max sequence length
    */
-  llama2::Transformer<float> transformer(kCheckPointPath);
+  llama::Transformer<float> transformer(kCheckPointPath);
 
   const auto& config = transformer_->GetConfig();
 
@@ -234,7 +235,7 @@ class RunStateAllocTest : public LoaderTest {
 
 TEST_F(RunStateAllocTest, AllocSizeTest) {
   const auto& kConfig = transformer_->GetConfig();
-  llama2::RunState<float> run_state(kConfig);
+  llama::RunState<float> run_state(kConfig);
 
   const size_t kDim = kConfig.Dim();
   const size_t kHiddenDim = kConfig.HiddenDim();

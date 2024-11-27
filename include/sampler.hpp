@@ -23,7 +23,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 class Sampler {
  public:
@@ -138,4 +138,4 @@ class Sampler {
     return prob_indices_[last_idx].idx;
   }
 };
-}  // namespace llama2
+}  // namespace llama

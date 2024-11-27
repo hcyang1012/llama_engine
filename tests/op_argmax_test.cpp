@@ -4,7 +4,9 @@
 #include <vector>
 
 #include "op.hpp"
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 
 TEST(OpArgmaxTest, Test1) {
   std::vector<float> input;
@@ -15,13 +17,13 @@ TEST(OpArgmaxTest, Test1) {
   for (int i = 0; i < 10; i++) {
     input.push_back(dis(gen));
   }
-  llama2::Tensor<float> input_tensor({10});
+  llama::Tensor<float> input_tensor({10});
   for (int i = 0; i < 10; i++) {
     input_tensor[i] = input[i];
   }
 
   size_t expected = reference::sample_argmax(input.data(), 10);
-  size_t actual = llama2::ArgMax<float>::Compute(input_tensor);
+  size_t actual = llama::ArgMax<float>::Compute(input_tensor);
 
   EXPECT_EQ(expected, actual);
 }

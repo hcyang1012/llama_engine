@@ -19,7 +19,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 template <typename T>
 class TransformerWeights {
@@ -186,4 +186,4 @@ class TransformerWeights {
                                ///< Shape: [dim, vocab_size]
 };
 
-}  // namespace llama2
+}  // namespace llama
