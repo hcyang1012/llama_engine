@@ -200,8 +200,8 @@ TEST_F(AttentionTest, ForwardTest) {
         auto V = transformer_->GetRunState().V(layer);
 
         auto output = transformer_->GetRunState().XB(header_idx);
-        llama::Attention<float>::Compute(Q, K, V, transformer_->GetConfig(),
-                                         kPos, kKVHeadIdx, output);
+        op_set_->Attention<float>(Q, K, V, transformer_->GetConfig(), kPos,
+                                  kKVHeadIdx, output);
 
         EXPECT_TRUE(std::equal(xb, xb + kRefHeadSize, output.GetData()))
             << "Compare for header #" << header_idx << " failed.";

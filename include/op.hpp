@@ -90,6 +90,26 @@ class OpSet {
     }
   }
 
+  template <typename T>
+  void Attention(const Tensor<T>& Q, const Tensor<T>& K, const Tensor<T>& V,
+                 const Config& config, const size_t pos,
+                 const size_t header_idx, Tensor<T>& output) {
+    const size_t kPerHeadDim = config.Dim() / config.NumHeads();
+    const size_t kKVHeadDim =
+        (config.Dim() * config.NumKVHeads()) / config.NumHeads();
+    CHECK_EQ(Q.GetShape()[0], kPerHeadDim);
+
+    CHECK_EQ(K.GetShape()[0], kPerHeadDim);
+    CHECK_EQ(K.GetShape()[1], config.NumKVHeads());
+    CHECK_EQ(V.GetShape()[2], config.SeqLen());
+
+    CHECK_EQ(V.GetShape()[0], kPerHeadDim);
+    CHECK_EQ(V.GetShape()[1], config.NumKVHeads());
+    CHECK_EQ(V.GetShape()[2], config.SeqLen());
+
+    AttentionImpl(&Q, &K, &V, config, pos, header_idx, &output, typeid(T));
+  }
+
   virtual ~OpSet() = default;
 
  protected:
@@ -105,6 +125,11 @@ class OpSet {
 
   virtual void SoftMaxImpl(const void* input, void* output, const size_t size,
                            const std::type_info& type) = 0;
+
+  virtual void AttentionImpl(const void* Q, const void* K, const void* V,
+                             const Config& config, const size_t pos,
+                             const size_t header_idx, void* output,
+                             const std::type_info& type) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -148,6 +173,21 @@ class OpSetCpu : public OpSet {
     if (type == typeid(float)) {
       OPSetCpu::SoftMax<float>::Compute(static_cast<const float*>(input),
                                         static_cast<float*>(output), size);
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
+  }
+
+  void AttentionImpl(const void* Q, const void* K, const void* V,
+                     const Config& config, const size_t pos,
+                     const size_t header_idx, void* output,
+                     const std::type_info& type) override {
+    if (type == typeid(float)) {
+      OPSetCpu::Attention<float>::Compute(*static_cast<const Tensor<float>*>(Q),
+                                          *static_cast<const Tensor<float>*>(K),
+                                          *static_cast<const Tensor<float>*>(V),
+                                          config, pos, header_idx,
+                                          *static_cast<Tensor<float>*>(output));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }

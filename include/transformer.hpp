@@ -168,7 +168,7 @@ class Transformer {
         auto V_layer = run_state_->V(layer);
 
         auto XB = run_state_->XB(head_idx);
-        Attention<T>::Compute(Q, K_layer, V_layer, *config_, pos, kKVHeadIdx,
+        op_set_->Attention<T>(Q, K_layer, V_layer, *config_, pos, kKVHeadIdx,
                               XB);
       }
 

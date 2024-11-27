@@ -189,8 +189,6 @@ class SoftMax {
  private:
 };
 
-}  // namespace OPSetCpu
-
 template <typename T>
 class Attention {
  public:
@@ -249,6 +247,8 @@ class Attention {
 
  private:
 };
+
+}  // namespace OPSetCpu
 
 template <typename T>
 class ElementwiseAdd {
