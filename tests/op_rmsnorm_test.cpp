@@ -51,7 +51,8 @@ class RmsNormTest : public ::testing::Test {
 TEST_F(RmsNormTest, RmsNormTest) {
   const size_t kSize = 4;
   std::vector<float> expected_o(kSize);
-  auto actual = llama::RmsNorm<float>::Compute(*x_, *weight_);
+  llama::Tensor<float> actual(x_->GetShape());
+  llama::RmsNorm<float>::Compute(*x_, *weight_, actual);
   reference::rmsnorm(expected_o.data(), x_->GetData(), weight_->GetData(),
                      kSize);
 

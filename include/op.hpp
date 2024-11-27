@@ -24,18 +24,13 @@
 // Third-party Headers
 
 namespace llama {
+class OpSetCPU {
+ public:
+ private:
+};
 template <typename T>
 class RmsNorm {
  public:
-  static Tensor<T> Compute(const Tensor<T>& x, const Tensor<T>& weight) {
-    CHECK(x.GetShape() == weight.GetShape())
-        << "Size of the input tensors should be the same";
-    DCHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
-    Tensor<T> o(x.GetShape());
-    Compute(x.GetData(), weight.GetData(), x.GetShape()[0], o.GetData());
-    return o;
-  }
-
   static void Compute(const Tensor<T>& x, const Tensor<T>& weight,
                       Tensor<T>& out) {
     CHECK(x.GetShape() == weight.GetShape())
