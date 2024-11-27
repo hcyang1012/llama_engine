@@ -181,7 +181,7 @@ class Transformer {
       }
 
       // Residual Connection
-      { ElementwiseAdd<T>::Compute(X, XB2, X); }
+      { op_set_->ElementwiseAdd<T>(X, XB2, X); }
 
       // Feed Forward Network RMSNorm
       {
@@ -204,7 +204,7 @@ class Transformer {
       }
 
       // Residual Connection
-      { ElementwiseAdd<T>::Compute(X, XB, X); }
+      { op_set_->ElementwiseAdd<T>(X, XB, X); }
     }
 
     // Final RMSNorm

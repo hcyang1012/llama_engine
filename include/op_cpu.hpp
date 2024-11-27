@@ -248,8 +248,6 @@ class Attention {
  private:
 };
 
-}  // namespace OPSetCpu
-
 template <typename T>
 class ElementwiseAdd {
  public:
@@ -264,6 +262,7 @@ class ElementwiseAdd {
     Compute(left.GetData(), right.GetData(), output.GetData(), size);
   }
 
+ private:
   static void Compute(const T* left, const T* right, T* output,
                       const size_t size) {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
@@ -271,9 +270,9 @@ class ElementwiseAdd {
       output[i] = left[i] + right[i];
     }
   }
-
- private:
 };
+
+}  // namespace OPSetCpu
 
 template <typename T>
 class SiLU_EWMul {

@@ -110,6 +110,18 @@ class OpSet {
     AttentionImpl(&Q, &K, &V, config, pos, header_idx, &output, typeid(T));
   }
 
+  template <typename T>
+  void ElementwiseAdd(const Tensor<T>& left, const Tensor<T>& right,
+                      Tensor<T>& output) {
+    CHECK(left.GetShape() == right.GetShape())
+        << "Input tensors should have the same shape";
+    CHECK(left.GetShape() == output.GetShape())
+        << "Output tensor should have the same shape as the input tensor";
+
+    const size_t size = left.GetShape().GetSize();
+    ElementwiseAddImpl(&left, &right, &output, size);
+  }
+
   virtual ~OpSet() = default;
 
  protected:
@@ -130,6 +142,9 @@ class OpSet {
                              const Config& config, const size_t pos,
                              const size_t header_idx, void* output,
                              const std::type_info& type) = 0;
+
+  virtual void ElementwiseAddImpl(const void* left, const void* right,
+                                  void* output, const size_t size) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -191,6 +206,14 @@ class OpSetCpu : public OpSet {
     } else {
       LOG(FATAL) << "Unsupported data type";
     }
+  }
+
+  void ElementwiseAddImpl(const void* left, const void* right, void* output,
+                          const size_t size) override {
+    OPSetCpu::ElementwiseAdd<float>::Compute(
+        *static_cast<const Tensor<float>*>(left),
+        *static_cast<const Tensor<float>*>(right),
+        *static_cast<Tensor<float>*>(output));
   }
 
  private:
