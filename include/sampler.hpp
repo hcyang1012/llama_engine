@@ -58,7 +58,7 @@ class Sampler {
         << "Input tensor should have the same size as the vocab size";
     int next;
     if (Temperature() == 0.0f) {
-      next = ArgMax<T>::Compute(logits);
+      next = op_set_.ArgMax<T>(logits);
     } else {
       Tensor<T> logits_copy(logits.GetShape());
       for (size_t q = 0; q < VocabSize(); q++) {

@@ -308,8 +308,6 @@ class SiLU_EWMul {
   }
 };
 
-}  // namespace OPSetCpu
-
 template <typename T>
 class ArgMax {
  public:
@@ -330,5 +328,7 @@ class ArgMax {
 
  private:
 };
+
+}  // namespace OPSetCpu
 
 }  // namespace llama

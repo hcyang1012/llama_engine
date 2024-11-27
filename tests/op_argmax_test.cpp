@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <op_cpu.hpp>
+#include <op.hpp>
 #include <random>
 #include <vector>
 #if defined(USE_LLAMA2)
@@ -22,7 +22,9 @@ TEST(OpArgmaxTest, Test1) {
   }
 
   size_t expected = reference::sample_argmax(input.data(), 10);
-  size_t actual = llama::ArgMax<float>::Compute(input_tensor);
+
+  auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+  auto actual = op_set->ArgMax<float>(input_tensor);
 
   EXPECT_EQ(expected, actual);
 }

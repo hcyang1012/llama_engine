@@ -23,10 +23,10 @@ class SamplerTest : public ::testing::Test {
     build_sampler(&ref_sampler_, ref_transformer_.config.vocab_size,
                   kTemperature, kTopP, kRngSeed);
 
-    auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+    op_set_ = llama::CreateOpSet(llama::OpSet::OpType::CPU);
     sampler_ = std::make_unique<llama::Sampler>(
         transformer_->GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed,
-        *op_set);
+        *op_set_);
   }
 
   void TearDown() override {
@@ -41,6 +41,7 @@ class SamplerTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Sampler> sampler_;
+  std::unique_ptr<llama::OpSet> op_set_;
 
   reference::Transformer ref_transformer_;
   reference::Sampler ref_sampler_;

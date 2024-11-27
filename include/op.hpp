@@ -134,6 +134,13 @@ class OpSet {
     SiLU_EWMulImpl(&input, &weight, &output, size);
   }
 
+  template <typename T>
+  size_t ArgMax(const Tensor<T>& input) {
+    DCHECK_EQ(input.GetShape().GetRank(), 1)
+        << "Input tensor should be 1D tensor";
+    return ArgMaxImpl(&input, typeid(T));
+  }
+
   virtual ~OpSet() = default;
 
  protected:
@@ -160,6 +167,8 @@ class OpSet {
 
   virtual void SiLU_EWMulImpl(const void* input, const void* weight,
                               void* output, const size_t size) = 0;
+
+  virtual size_t ArgMaxImpl(const void* input, const std::type_info& type) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -237,6 +246,15 @@ class OpSetCpu : public OpSet {
         *static_cast<const Tensor<float>*>(input),
         *static_cast<const Tensor<float>*>(weight),
         *static_cast<Tensor<float>*>(output));
+  }
+
+  size_t ArgMaxImpl(const void* input, const std::type_info& type) override {
+    if (type == typeid(float)) {
+      return OPSetCpu::ArgMax<float>::Compute(
+          *static_cast<const Tensor<float>*>(input));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
   }
 
  private:
