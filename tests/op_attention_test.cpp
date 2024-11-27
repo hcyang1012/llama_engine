@@ -156,7 +156,7 @@ TEST_F(AttentionTest, ForwardTest) {
       }
       auto Q = transformer_->GetRunState().Q();
       auto K = transformer_->GetRunState().K(layer, kPos);
-      llama::RoPE<float>::Compute(kPos, transformer_->GetConfig(), Q, K);
+      op_set_->RoPE<float>(kPos, transformer_->GetConfig(), Q, K);
 
       EXPECT_TRUE(
           std::equal(ref_run_state.q, ref_run_state.q + kDim, Q.GetData()));

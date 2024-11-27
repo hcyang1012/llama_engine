@@ -156,7 +156,7 @@ class Transformer {
       }
 
       // RoPE
-      { RoPE<T>::Compute(pos, *config_, Q, K); }
+      { op_set_->RoPE<T>(pos, *config_, Q, K); }
 
       // Multi-Head Attention
       const size_t kNumHeads = config_->NumHeads();

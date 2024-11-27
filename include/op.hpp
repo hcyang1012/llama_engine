@@ -59,6 +59,15 @@ class OpSet {
                weight.GetShape()[1], out.GetData(), typeid(T));
   }
 
+  template <typename T>
+  void RoPE(const size_t position, const Config& config, Tensor<float>& Q,
+            Tensor<float>& K) {
+    CHECK_EQ(Q.GetShape()[0], config.Dim())
+        << "Input tensor should have the same dimension as the config";
+
+    RoPEImpl(position, config, Q.GetData(), K.GetData(), typeid(T));
+  }
+
   virtual ~OpSet() = default;
 
  protected:
@@ -68,6 +77,9 @@ class OpSet {
   virtual void MatMulImpl(const void* weight, const void* input, const size_t n,
                           const size_t d, void* out,
                           const std::type_info& type) = 0;
+
+  virtual void RoPEImpl(const size_t position, const Config& config, void* Q,
+                        void* K, const std::type_info& type) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -91,6 +103,16 @@ class OpSetCpu : public OpSet {
       OPSetCpu::MatMul<float>::Compute(static_cast<const float*>(weight),
                                        static_cast<const float*>(input), n, d,
                                        static_cast<float*>(out));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
+  }
+
+  void RoPEImpl(const size_t position, const Config& config, void* Q, void* K,
+                const std::type_info& type) override {
+    if (type == typeid(float)) {
+      OPSetCpu::RoPE<float>::Compute(position, config, static_cast<float*>(Q),
+                                     static_cast<float*>(K));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }

@@ -109,8 +109,6 @@ class MatMul {
   }
 };
 
-}  // namespace OPSetCpu
-
 template <typename T>
 class RoPE {
  public:
@@ -119,11 +117,10 @@ class RoPE {
     DCHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    compute(position, config, Q.GetData(), K.GetData());
+    Compute(position, config, Q.GetData(), K.GetData());
   }
 
- private:
-  static void compute(const size_t position, const Config& config, float* Q,
+  static void Compute(const size_t position, const Config& config, float* Q,
                       float* K) {
     const size_t dim = config.Dim();
     const size_t kv_dim =
@@ -148,6 +145,8 @@ class RoPE {
     }
   }
 };
+
+}  // namespace OPSetCpu
 
 template <typename T>
 class SoftMax {
