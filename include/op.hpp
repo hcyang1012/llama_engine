@@ -119,7 +119,7 @@ class OpSet {
         << "Output tensor should have the same shape as the input tensor";
 
     const size_t size = left.GetShape().GetSize();
-    ElementwiseAddImpl(&left, &right, &output, size);
+    ElementwiseAddImpl(&left, &right, &output, size, typeid(T));
   }
 
   template <typename T>
@@ -131,7 +131,7 @@ class OpSet {
         << "Output tensor should have the same shape as the input tensor";
 
     const size_t size = input.GetShape().GetSize();
-    SiLU_EWMulImpl(&input, &weight, &output, size);
+    SiLU_EWMulImpl(&input, &weight, &output, size, typeid(T));
   }
 
   template <typename T>
@@ -163,10 +163,12 @@ class OpSet {
                              const std::type_info& type) = 0;
 
   virtual void ElementwiseAddImpl(const void* left, const void* right,
-                                  void* output, const size_t size) = 0;
+                                  void* output, const size_t size,
+                                  const std::type_info& type) = 0;
 
   virtual void SiLU_EWMulImpl(const void* input, const void* weight,
-                              void* output, const size_t size) = 0;
+                              void* output, const size_t size,
+                              const std::type_info& type) = 0;
 
   virtual size_t ArgMaxImpl(const void* input, const std::type_info& type) = 0;
 };
@@ -233,19 +235,28 @@ class OpSetCpu : public OpSet {
   }
 
   void ElementwiseAddImpl(const void* left, const void* right, void* output,
-                          const size_t size) override {
-    OPSetCpu::ElementwiseAdd<float>::Compute(
-        *static_cast<const Tensor<float>*>(left),
-        *static_cast<const Tensor<float>*>(right),
-        *static_cast<Tensor<float>*>(output));
+                          const size_t size,
+                          const std::type_info& type) override {
+    if (type == typeid(float)) {
+      OPSetCpu::ElementwiseAdd<float>::Compute(
+          *static_cast<const Tensor<float>*>(left),
+          *static_cast<const Tensor<float>*>(right),
+          *static_cast<Tensor<float>*>(output));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
   }
 
   void SiLU_EWMulImpl(const void* input, const void* weight, void* output,
-                      const size_t size) override {
-    OPSetCpu::SiLU_EWMul<float>::Compute(
-        *static_cast<const Tensor<float>*>(input),
-        *static_cast<const Tensor<float>*>(weight),
-        *static_cast<Tensor<float>*>(output));
+                      const size_t size, const std::type_info& type) override {
+    if (type == typeid(float)) {
+      OPSetCpu::SiLU_EWMul<float>::Compute(
+          *static_cast<const Tensor<float>*>(input),
+          *static_cast<const Tensor<float>*>(weight),
+          *static_cast<Tensor<float>*>(output));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
   }
 
   size_t ArgMaxImpl(const void* input, const std::type_info& type) override {
