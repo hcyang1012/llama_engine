@@ -17,7 +17,7 @@
 #include <vector>
 
 // Project Headers
-#include <op.hpp>
+#include <op_cpu.hpp>
 #include <rng.hpp>
 #include <tensor.hpp>
 

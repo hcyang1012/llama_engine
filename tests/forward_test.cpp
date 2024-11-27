@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <op_cpu.hpp>
+
 #include "encoder.hpp"
-#include "op.hpp"
 #if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
 #endif

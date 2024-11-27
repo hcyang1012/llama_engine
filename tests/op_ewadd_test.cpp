@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "op.hpp"
+#include <op_cpu.hpp>
+
 #include "tensor.hpp"
 TEST(OP_EWADD_TEST, TEST1) {
   llama::Tensor<float> input1({4});

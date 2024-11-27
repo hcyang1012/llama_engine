@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
 // For random number generation
+#include <op_cpu.hpp>
 #include <random>
 
 #include "encoder.hpp"
-#include "op.hpp"
 #if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
 #endif

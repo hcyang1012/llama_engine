@@ -22,7 +22,7 @@
 #include <config.hpp>
 #include <decoder.hpp>
 #include <encoder.hpp>
-#include <op.hpp>
+#include <op_cpu.hpp>
 #include <run_state.hpp>
 #include <sampler.hpp>
 #include <tensor.hpp>

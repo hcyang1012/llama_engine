@@ -24,10 +24,39 @@
 // Third-party Headers
 
 namespace llama {
-class OpSetCPU {
+namespace OpSetCPU {
+class RmsNormCpu {
  public:
+  template <typename T>
+  void Compute(const Tensor<T>& x, const Tensor<T>& weight, Tensor<T>& out) {
+    DCHECK_EQ(x.GetShape(), weight.GetShape())
+        << "Size of the input tensors should be the same";
+    DCHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
+    DCHECK_EQ(out.GetShape(), x.GetShape())
+        << "Output tensor should have the same shape as the input tensor";
+    Compute(x.GetData(), weight.GetData(), x.GetShape()[0], out.GetData());
+  }
+
  private:
+  template <typename T>
+  void Compute(const T* x, const T* weight, const size_t size, T* o) {
+    DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
+    // calculate sum of squares
+    float sum = 0.0f;
+    for (size_t i = 0; i < size; i++) {
+      sum += static_cast<float>(x[i]) * static_cast<float>(x[i]);
+    }
+    sum /= size;
+    float epsilon = 1e-5f;
+    sum += epsilon;
+    sum = 1.0f / sqrtf(sum);
+    // normalize and scale
+    for (size_t i = 0; i < size; i++) {
+      o[i] = static_cast<T>(static_cast<float>(weight[i]) * (sum * x[i]));
+    }
+  }
 };
+}  // namespace OpSetCPU
 template <typename T>
 class RmsNorm {
  public:
