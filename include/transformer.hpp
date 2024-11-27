@@ -31,7 +31,7 @@
 
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 template <typename T>
 class Transformer {
@@ -272,4 +272,4 @@ class Transformer {
   T *mapped_file_;     // pointer to the memory mapped file
 };
 
-}  // namespace llama2
+}  // namespace llama

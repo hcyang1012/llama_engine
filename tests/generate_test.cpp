@@ -11,11 +11,11 @@
 class GenerateTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    llama2::Transformer<float>::RunConfig run_config = {temperature_, topp_,
-                                                        rng_seed_};
+    llama::Transformer<float>::RunConfig run_config = {temperature_, topp_,
+                                                       rng_seed_};
     transformer_ =
-        std::make_unique<llama2::Transformer<float>>(kChkPointPath, run_config);
-    tokenizer_ = std::make_unique<llama2::Tokenizer<float>>(
+        std::make_unique<llama::Transformer<float>>(kChkPointPath, run_config);
+    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
@@ -27,8 +27,8 @@ class GenerateTest : public ::testing::Test {
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 
   // float temperature_ = 0.8f;
   float temperature_ = 0.0f;

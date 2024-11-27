@@ -23,8 +23,8 @@ TEST(SoftMaxTest, BATCH_TEST) {
     // Select a random dimension
     const size_t dim = dis_dim(gen);
     const size_t batch = dis_batch(gen);
-    llama2::Tensor<float> input({batch, dim});
-    llama2::Tensor<float> output({batch, dim});
+    llama::Tensor<float> input({batch, dim});
+    llama::Tensor<float> output({batch, dim});
 
     std::vector<float> reference_inout(batch * dim);
 
@@ -33,7 +33,7 @@ TEST(SoftMaxTest, BATCH_TEST) {
       input[i] = static_cast<float>(i);
     }
 
-    llama2::SoftMax<float>::Compute(input, output);
+    llama::SoftMax<float>::Compute(input, output);
     for (size_t b = 0; b < batch; b++) {
       reference::softmax(reference_inout.data() + b * dim, dim);
       for (size_t i = 0; i < dim; i++) {

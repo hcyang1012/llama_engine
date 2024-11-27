@@ -17,7 +17,7 @@
 #include <dtypes.h>
 // Third-party Headers
 
-namespace llama2 {
+namespace llama {
 
 /**
  * @brief Configuration class for the Transformer model.
@@ -65,4 +65,4 @@ class Config {
   llama_uint32_t kVocabSize;  ///< Size of the vocabulary
   llama_uint32_t kSeqLen;     ///< Maximum sequence length
 };
-}  // namespace llama2
+}  // namespace llama

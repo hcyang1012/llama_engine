@@ -12,4 +12,4 @@
 
 // Third-party Headers
 
-namespace llama2 {} // namespace llama2
+namespace llama {}  // namespace llama

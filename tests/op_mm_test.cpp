@@ -19,8 +19,8 @@ class MatMulTest : public ::testing::Test {
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
-    weight_ = std::make_unique<llama2::Tensor<float>>(llama2::Shape({d, n}));
-    input_ = std::make_unique<llama2::Tensor<float>>(llama2::Shape({d}));
+    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d, n}));
+    input_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d}));
 
     for (size_t i = 0; i < n; i++) {
       for (size_t j = 0; j < d; j++) {
@@ -32,8 +32,8 @@ class MatMulTest : public ::testing::Test {
       (*input_)[i] = dis(gen);
     }
 
-    transformer_ = std::make_unique<llama2::Transformer<float>>(kChkPointPath);
-    tokenizer_ = std::make_unique<llama2::Tokenizer<float>>(
+    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
@@ -53,20 +53,20 @@ class MatMulTest : public ::testing::Test {
   const size_t d = 4;
   const size_t n = 5;
 
-  std::unique_ptr<llama2::Tensor<float>> weight_;
-  std::unique_ptr<llama2::Tensor<float>> input_;
+  std::unique_ptr<llama::Tensor<float>> weight_;
+  std::unique_ptr<llama::Tensor<float>> input_;
 
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama2::Transformer<float>> transformer_;
-  std::unique_ptr<llama2::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 };
 
 TEST_F(MatMulTest, MatMulTest) {
   std::vector<float> expected_o(n);
-  llama2::Tensor<float> actual({n});
-  llama2::MatMul<float>::Compute(*weight_, *input_, actual);
+  llama::Tensor<float> actual({n});
+  llama::MatMul<float>::Compute(*weight_, *input_, actual);
   reference::matmul(expected_o.data(), input_->GetData(), weight_->GetData(), d,
                     n);
 
@@ -88,7 +88,7 @@ TEST_F(MatMulTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama2::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
+  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
             transformer_->GetRunState().X().GetData());
@@ -101,10 +101,10 @@ TEST_F(MatMulTest, ForwardTest) {
     reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
                        ref_weights.rms_att_weight + layer * kDim, kDim);
 
-    llama2::RmsNorm<float>::Compute(transformer_->GetRunState().X().GetData(),
-                                    kWeights.RMSAttnWeight() + layer * kDim,
-                                    kDim,
-                                    transformer_->GetRunState().XB().GetData());
+    llama::RmsNorm<float>::Compute(transformer_->GetRunState().X().GetData(),
+                                   kWeights.RMSAttnWeight() + layer * kDim,
+                                   kDim,
+                                   transformer_->GetRunState().XB().GetData());
     EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
                            transformer_->GetRunState().XB().GetData()));
 
@@ -113,8 +113,8 @@ TEST_F(MatMulTest, ForwardTest) {
     ref_run_state.v = ref_run_state.value_cache + kLayerOffset + kPos * kKVDim;
 
     // Calculate Q
-    llama2::MatMul<float>::Compute(
-        kWeights.WQ(layer).ReShape(llama2::Shape({kDim, kDim})),
+    llama::MatMul<float>::Compute(
+        kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
         transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
     reference::matmul(ref_run_state.q, ref_run_state.xb,
@@ -125,8 +125,8 @@ TEST_F(MatMulTest, ForwardTest) {
 
     // Calculate K
     auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
-    llama2::MatMul<float>::Compute(
-        kWeights.WK(layer).ReShape(llama2::Shape({kDim, kKVDim})),
+    llama::MatMul<float>::Compute(
+        kWeights.WK(layer).ReShape(llama::Shape({kDim, kKVDim})),
         transformer_->GetRunState().XB(), K);
     reference::matmul(ref_run_state.k, ref_run_state.xb,
                       ref_weights.wk + layer * kDim * kKVDim, kDim, kKVDim);
@@ -135,8 +135,8 @@ TEST_F(MatMulTest, ForwardTest) {
 
     // Calculate V
     auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
-    llama2::MatMul<float>::Compute(
-        kWeights.WV(layer).ReShape(llama2::Shape({kDim, kKVDim})),
+    llama::MatMul<float>::Compute(
+        kWeights.WV(layer).ReShape(llama::Shape({kDim, kKVDim})),
         transformer_->GetRunState().XB(), V);
     reference::matmul(ref_run_state.v, ref_run_state.xb,
                       ref_weights.wv + layer * kDim * kKVDim, kDim, kKVDim);
