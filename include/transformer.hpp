@@ -22,7 +22,8 @@
 #include <config.hpp>
 #include <decoder.hpp>
 #include <encoder.hpp>
-#include <op_cpu.hpp>
+#include <op.hpp>
+// #include <op_cpu.hpp>
 #include <run_state.hpp>
 #include <sampler.hpp>
 #include <tensor.hpp>
@@ -42,16 +43,19 @@ class Transformer {
     unsigned long long rng_seed = 0;
   };
 
-  Transformer(const std::string &ckpt_file, const RunConfig &run_config)
+  Transformer(const std::string &ckpt_file, const RunConfig &run_config,
+              const OpSet::OpType op_type = OpSet::OpType::CPU)
       : run_config_(run_config) {
     load_checkpoint(ckpt_file);
     sampler_ =
         std::make_unique<Sampler>(config_->VocabSize(), run_config_.temperature,
                                   run_config_.topp, run_config_.rng_seed);
+    op_set_ = CreateOpSet(op_type);
   }
 
-  Transformer(const std::string &ckpt_file)
-      : Transformer(ckpt_file, run_config_) {}
+  Transformer(const std::string &ckpt_file,
+              const OpSet::OpType op_type = OpSet::OpType::CPU)
+      : Transformer(ckpt_file, run_config_, op_type) {}
   ~Transformer() {}
 
   const auto &GetConfig() const { return *config_; }
@@ -129,7 +133,8 @@ class Transformer {
       // RMSNorm
       {
         const auto kRmsAttWeight = weights_->RMSAttnWeight(layer);
-        RmsNorm<T>::Compute(X, kRmsAttWeight, XB);
+        op_set_->RmsNorm<T>(X, kRmsAttWeight, XB);
+        // RmsNorm<T>::Compute(X, kRmsAttWeight, XB);
       }
 
       auto K = run_state_->K(layer, pos).ReShape({kKVDim});
@@ -178,7 +183,7 @@ class Transformer {
       // Feed Forward Network RMSNorm
       {
         const auto WRMSFFN = weights_->RMSFFNWeight(layer);
-        RmsNorm<T>::Compute(X, WRMSFFN, XB);
+        op_set_->RmsNorm(X, WRMSFFN, XB);
       }
 
       // SWiGLU Feed Forward Network
@@ -201,7 +206,7 @@ class Transformer {
 
     // Final RMSNorm
     const auto kRmsFinalWeight = weights_->RMSFinalWeight();
-    { RmsNorm<T>::Compute(X, kRmsFinalWeight, X); }
+    { op_set_->RmsNorm<T>(X, kRmsFinalWeight, X); }
 
     // Logits
     { MatMul<T>::Compute(weights_->WCLS(), X, run_state_->Logits()); }
@@ -270,6 +275,8 @@ class Transformer {
   int fd_;             // file descriptor for the memory mapped file
   ssize_t file_size_;  // size of the memory mapped file
   T *mapped_file_;     // pointer to the memory mapped file
+
+  std::unique_ptr<OpSet> op_set_;
 };
 
 }  // namespace llama

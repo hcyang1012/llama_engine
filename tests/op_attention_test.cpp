@@ -46,6 +46,9 @@ class AttentionTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 };
 
 TEST_F(AttentionTest, ForwardTest) {
@@ -81,11 +84,9 @@ TEST_F(AttentionTest, ForwardTest) {
       reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
                          ref_weights.rms_att_weight + layer * kDim, kDim);
 
-      llama::RmsNorm<float>::Compute(
-
-          transformer_->GetRunState().X().GetData(),
-          kWeights.RMSAttnWeight() + layer * kDim, kDim,
-          transformer_->GetRunState().XB().GetData());
+      op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
+                              kWeights.RMSAttnWeight(layer),
+                              transformer_->GetRunState().XB());
 
       EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
                              transformer_->GetRunState().XB().GetData()));
