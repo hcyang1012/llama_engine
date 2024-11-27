@@ -38,6 +38,7 @@ class RmsNorm {
     Compute(x.GetData(), weight.GetData(), x.GetShape()[0], out.GetData());
   }
 
+ private:
   static void Compute(const T* x, const T* weight, const size_t size, T* o) {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
     // calculate sum of squares
@@ -93,6 +94,7 @@ class MatMul {
             weight.GetShape()[1], out.GetData());
   }
 
+ private:
   static void Compute(const T* weight, const T* input, const size_t n,
                       const size_t d, T* out) {
     DCHECK_GE(n, 0) << "Size 'n' should be greater than or equal to 0";
@@ -120,6 +122,7 @@ class RoPE {
     Compute(position, config, Q.GetData(), K.GetData());
   }
 
+ private:
   static void Compute(const size_t position, const Config& config, float* Q,
                       float* K) {
     const size_t dim = config.Dim();
@@ -170,6 +173,7 @@ class SoftMax {
     }
   }
 
+ private:
   static void Compute(const T* input, float* output, const size_t size) {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
     float max_val = input[0];
@@ -185,8 +189,6 @@ class SoftMax {
       output[i] /= sum;
     }
   }
-
- private:
 };
 
 template <typename T>

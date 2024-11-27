@@ -33,8 +33,7 @@ class OpSet {
     DCHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
     DCHECK_EQ(out.GetShape(), x.GetShape())
         << "Output tensor should have the same shape as the input tensor";
-    RmsNormImpl(x.GetData(), weight.GetData(), x.GetShape()[0], out.GetData(),
-                typeid(T));
+    RmsNormImpl(&x, &weight, &out, typeid(T));
   }
 
   template <typename T>
@@ -55,8 +54,7 @@ class OpSet {
           << "Output tensor should have the shape of " << kExpectedShape;
     }
 
-    MatMulImpl(weight.GetData(), input.GetData(), weight.GetShape()[0],
-               weight.GetShape()[1], out.GetData(), typeid(T));
+    MatMulImpl(&weight, &input, &out, typeid(T));
   }
 
   template <typename T>
@@ -65,7 +63,7 @@ class OpSet {
     CHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    RoPEImpl(position, config, Q.GetData(), K.GetData(), typeid(T));
+    RoPEImpl(position, config, &Q, &K, typeid(T));
   }
 
   template <typename T>
@@ -78,16 +76,7 @@ class OpSet {
     const size_t kStride = input.GetShape().GetRank() == 1
                                ? input.GetShape()[0]
                                : input.GetShape()[1];
-
-    if (input.GetShape().GetRank() == 1) {
-      SoftMaxImpl(input.GetData(), output.GetData(), kStride, typeid(T));
-    } else {
-      const size_t kBatchSize = input.GetShape()[0];
-      for (size_t batch = 0; batch < kBatchSize; batch++) {
-        SoftMaxImpl(input.GetData() + batch * kStride,
-                    output.GetData() + batch * kStride, kStride, typeid(T));
-      }
-    }
+    SoftMaxImpl(&input, &output, typeid(T));
   }
 
   template <typename T>
@@ -144,17 +133,16 @@ class OpSet {
   virtual ~OpSet() = default;
 
  protected:
-  virtual void RmsNormImpl(const void* x, const void* weight, const size_t size,
-                           void* out, const std::type_info& type) = 0;
+  virtual void RmsNormImpl(const void* x, const void* weight, void* out,
+                           const std::type_info& type) = 0;
 
-  virtual void MatMulImpl(const void* weight, const void* input, const size_t n,
-                          const size_t d, void* out,
+  virtual void MatMulImpl(const void* weight, const void* input, void* out,
                           const std::type_info& type) = 0;
 
   virtual void RoPEImpl(const size_t position, const Config& config, void* Q,
                         void* K, const std::type_info& type) = 0;
 
-  virtual void SoftMaxImpl(const void* input, void* output, const size_t size,
+  virtual void SoftMaxImpl(const void* input, void* output,
                            const std::type_info& type) = 0;
 
   virtual void AttentionImpl(const void* Q, const void* K, const void* V,
@@ -176,24 +164,25 @@ class OpSet {
 class OpSetCpu : public OpSet {
  public:
   OpSetCpu() {}
-  void RmsNormImpl(const void* x, const void* weight, const size_t size,
-                   void* out, const std::type_info& type) override {
+  void RmsNormImpl(const void* x, const void* weight, void* out,
+                   const std::type_info& type) override {
     if (type == typeid(float)) {
-      OPSetCpu::RmsNorm<float>::Compute(static_cast<const float*>(x),
-                                        static_cast<const float*>(weight), size,
-                                        static_cast<float*>(out));
+      OPSetCpu::RmsNorm<float>::Compute(
+          *static_cast<const Tensor<float>*>(x),
+          *static_cast<const Tensor<float>*>(weight),
+          *static_cast<Tensor<float>*>(out));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }
   }
 
-  void MatMulImpl(const void* weight, const void* input, const size_t n,
-                  const size_t d, void* out,
+  void MatMulImpl(const void* weight, const void* input, void* out,
                   const std::type_info& type) override {
     if (type == typeid(float)) {
-      OPSetCpu::MatMul<float>::Compute(static_cast<const float*>(weight),
-                                       static_cast<const float*>(input), n, d,
-                                       static_cast<float*>(out));
+      OPSetCpu::MatMul<float>::Compute(
+          *static_cast<const Tensor<float>*>(weight),
+          *static_cast<const Tensor<float>*>(input),
+          *static_cast<Tensor<float>*>(out));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }
@@ -202,18 +191,19 @@ class OpSetCpu : public OpSet {
   void RoPEImpl(const size_t position, const Config& config, void* Q, void* K,
                 const std::type_info& type) override {
     if (type == typeid(float)) {
-      OPSetCpu::RoPE<float>::Compute(position, config, static_cast<float*>(Q),
-                                     static_cast<float*>(K));
+      OPSetCpu::RoPE<float>::Compute(position, config,
+                                     *static_cast<Tensor<float>*>(Q),
+                                     *static_cast<Tensor<float>*>(K));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }
   }
-
-  void SoftMaxImpl(const void* input, void* output, const size_t size,
+  void SoftMaxImpl(const void* input, void* output,
                    const std::type_info& type) override {
     if (type == typeid(float)) {
-      OPSetCpu::SoftMax<float>::Compute(static_cast<const float*>(input),
-                                        static_cast<float*>(output), size);
+      OPSetCpu::SoftMax<float>::Compute(
+          *static_cast<const Tensor<float>*>(input),
+          *static_cast<Tensor<float>*>(output));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }
