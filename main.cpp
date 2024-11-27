@@ -11,7 +11,7 @@
 
 #include <transformer.hpp>
 
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 // Third-party Headers
 
 void error_usage(const std::string &program_name) {

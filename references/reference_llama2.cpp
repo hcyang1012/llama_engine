@@ -1,3 +1,8 @@
+/**
+ * This is a copy of llama2.c code (https://github.com/karpathy/llama2.c)
+ * with some modifications to make it work with the C++ code.
+ */
+
 /* Inference for Llama-2 Transformer model in pure C */
 
 #include <ctype.h>
