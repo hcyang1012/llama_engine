@@ -18,6 +18,21 @@ set(LLAMA2_LIB_SOURCES
     src/weights.cpp
 )
 
+# add_compile_options(-pg)
+# add_link_options(-pg)
+
+# Add Release Build Flags
+# Check if ${CMAKE_BUILD_TYPE} is set, if not set to Release
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
+if (${CMAKE_BUILD_TYPE} STREQUAL "Release")
+    add_compile_options(-O3)
+    add_compile_options(-march=native)
+    add_compile_options(-flto)
+    add_link_options(-flto)
+endif()
+
 add_library(llama2_cpp_dummy_lib STATIC ${LLAMA2_LIB_SOURCES})
 target_include_directories(llama2_cpp_dummy_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(llama2_cpp_dummy_lib glog::glog)

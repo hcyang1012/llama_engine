@@ -19,6 +19,7 @@
 // Project Headers
 
 // Third-party Headers
+#include <glog/logging.h>
 
 namespace llama2 {
 
@@ -133,6 +134,27 @@ class Tensor {
       index = index * shape[i] + indices[i];
     }
     return data[index];
+  }
+
+  const T &at(const size_t i0) const {
+    DCHECK_EQ(shape.GetRank(), 1) << "Tensor should be 1D tensor";
+    DCHECK_LT(i0, shape[0]) << "Index[0] out of range" << i0 << " " << shape[0];
+    return data[i0];
+  }
+
+  const T &at(const size_t i0, const size_t i1) const {
+    DCHECK_EQ(shape.GetRank(), 2) << "Tensor should be 2D tensor";
+    DCHECK_LT(i0, shape[0]) << "Index[0] out of range" << i0 << " " << shape[0];
+    DCHECK_LT(i1, shape[1]) << "Index[1] out of range" << i1 << " " << shape[1];
+    return data[i1 * shape[0] + i0];
+  }
+
+  const T &at(const size_t i0, const size_t i1, const size_t i2) const {
+    DCHECK_EQ(shape.GetRank(), 3) << "Tensor should be 3D tensor";
+    DCHECK_LT(i0, shape[0]) << "Index[0] out of range" << i0 << " " << shape[0];
+    DCHECK_LT(i1, shape[1]) << "Index[1] out of range" << i1 << " " << shape[1];
+    DCHECK_LT(i2, shape[2]) << "Index[2] out of range" << i2 << " " << shape[2];
+    return data[i2 * (shape[0] * shape[1]) + i1 * shape[0] + i0];
   }
 
   const Shape &GetShape() const { return shape; }

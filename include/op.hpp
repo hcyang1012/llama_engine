@@ -233,7 +233,7 @@ class Attention {
     for (size_t t = 0; t <= pos; ++t) {
       float score = 0.0f;
       for (size_t i = 0; i < kPerHeadDim; ++i) {
-        score += (Q[{i}] * K[{i, header_idx, t}]);
+        score += (Q.at(i) * K.at(i, header_idx, t));
       }
       score /= sqrtf(kPerHeadDim);
       attention_scores[{t}] = score;
@@ -248,7 +248,8 @@ class Attention {
     for (size_t t = 0; t <= pos; ++t) {
       const float a = attention_scores[t];
       for (size_t i = 0; i < kPerHeadDim; ++i) {
-        output[{i}] += (a * V[{i, header_idx, t}]);
+        // output[{i}] += (a * V[{i, header_idx, t}]);
+        output[{i}] += (a * V.at(i, header_idx, t));
       }
     }
   }
