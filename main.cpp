@@ -101,6 +101,10 @@ int main(int argc, char *argv[]) {
   if (steps < 0) {
     steps = 0;
   }
+  const std::string kDefaultPrompt = "hello, how are you?";
+  if (prompt == NULL) {
+    prompt = const_cast<char *>(kDefaultPrompt.c_str());
+  }
 
   const llama::Transformer<float>::RunConfig run_config = {temperature, topp,
                                                            rng_seed};
