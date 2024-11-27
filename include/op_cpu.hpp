@@ -24,7 +24,7 @@
 // Third-party Headers
 
 namespace llama {
-namespace OPSetCpu {
+namespace CpuOps {
 template <typename T>
 class RmsNorm {
  public:
@@ -233,7 +233,7 @@ class Attention {
     }
 
     // Calculate the attention score and store it back to the same buffer
-    OPSetCpu::SoftMax<T>::Compute(attention_scores, attention_scores);
+    SoftMax<T>::Compute(attention_scores, attention_scores);
 
     // Weighted sum of the values, store back into output
     std::fill(output.GetData(), output.GetData() + output.GetShape().GetSize(),
@@ -331,6 +331,6 @@ class ArgMax {
  private:
 };
 
-}  // namespace OPSetCpu
+}  // namespace CpuOps
 
 }  // namespace llama

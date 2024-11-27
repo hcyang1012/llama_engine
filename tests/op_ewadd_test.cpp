@@ -3,6 +3,7 @@
 #include <op.hpp>
 
 #include "tensor.hpp"
+
 TEST(OP_EWADD_TEST, TEST1) {
   llama::Tensor<float> input1({4});
   llama::Tensor<float> input2({4});

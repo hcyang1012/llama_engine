@@ -23,7 +23,7 @@
 #include <decoder.hpp>
 #include <encoder.hpp>
 #include <op.hpp>
-// #include <op_cpu.hpp>
+// #include <op.hpp>
 #include <run_state.hpp>
 #include <sampler.hpp>
 #include <tensor.hpp>
@@ -44,18 +44,16 @@ class Transformer {
   };
 
   Transformer(const std::string &ckpt_file, const RunConfig &run_config,
-              const OpSet::OpType op_type = OpSet::OpType::CPU)
-      : run_config_(run_config) {
+              OpSet &op_set)
+      : run_config_(run_config), op_set_(op_set) {
     load_checkpoint(ckpt_file);
-    op_set_ = CreateOpSet(op_type);
     sampler_ = std::make_unique<Sampler>(
         config_->VocabSize(), run_config_.temperature, run_config_.topp,
-        run_config_.rng_seed, *op_set_);
+        run_config_.rng_seed, op_set_);
   }
 
-  Transformer(const std::string &ckpt_file,
-              const OpSet::OpType op_type = OpSet::OpType::CPU)
-      : Transformer(ckpt_file, run_config_, op_type) {}
+  Transformer(const std::string &ckpt_file, OpSet &op_set)
+      : Transformer(ckpt_file, run_config_, op_set) {}
   ~Transformer() {}
 
   const auto &GetConfig() const { return *config_; }
@@ -133,7 +131,7 @@ class Transformer {
       // RMSNorm
       {
         const auto kRmsAttWeight = weights_->RMSAttnWeight(layer);
-        op_set_->RmsNorm<T>(X, kRmsAttWeight, XB);
+        op_set_.RmsNorm<T>(X, kRmsAttWeight, XB);
         // RmsNorm<T>::Compute(X, kRmsAttWeight, XB);
       }
 
@@ -142,21 +140,19 @@ class Transformer {
 
       // Calculate Q, K, V
       {
-        op_set_->MatMul<T>(
+        op_set_.MatMul<T>(
             weights_->WQ(layer).ReShape({kInputEmbedDim, kInputEmbedDim}),
             run_state_->XB(), Q);
 
-        op_set_->MatMul<T>(
-            weights_->WK(layer).ReShape({kInputEmbedDim, kKVDim}),
-            run_state_->XB(), K);
+        op_set_.MatMul<T>(weights_->WK(layer).ReShape({kInputEmbedDim, kKVDim}),
+                          run_state_->XB(), K);
 
-        op_set_->MatMul<T>(
-            weights_->WV(layer).ReShape({kInputEmbedDim, kKVDim}),
-            run_state_->XB(), V);
+        op_set_.MatMul<T>(weights_->WV(layer).ReShape({kInputEmbedDim, kKVDim}),
+                          run_state_->XB(), V);
       }
 
       // RoPE
-      { op_set_->RoPE<T>(pos, *config_, Q, K); }
+      { op_set_.RoPE<T>(pos, *config_, Q, K); }
 
       // Multi-Head Attention
       const size_t kNumHeads = config_->NumHeads();
@@ -168,8 +164,8 @@ class Transformer {
         auto V_layer = run_state_->V(layer);
 
         auto XB = run_state_->XB(head_idx);
-        op_set_->Attention<T>(Q, K_layer, V_layer, *config_, pos, kKVHeadIdx,
-                              XB);
+        op_set_.Attention<T>(Q, K_layer, V_layer, *config_, pos, kKVHeadIdx,
+                             XB);
       }
 
       // Matmul
@@ -177,16 +173,16 @@ class Transformer {
         const auto WO =
             weights_->WO(layer).ReShape({kInputEmbedDim, kInputEmbedDim});
 
-        op_set_->MatMul<T>(WO, run_state_->XB(), XB2);
+        op_set_.MatMul<T>(WO, run_state_->XB(), XB2);
       }
 
       // Residual Connection
-      { op_set_->ElementwiseAdd<T>(X, XB2, X); }
+      { op_set_.ElementwiseAdd<T>(X, XB2, X); }
 
       // Feed Forward Network RMSNorm
       {
         const auto WRMSFFN = weights_->RMSFFNWeight(layer);
-        op_set_->RmsNorm(X, WRMSFFN, XB);
+        op_set_.RmsNorm(X, WRMSFFN, XB);
       }
 
       // SWiGLU Feed Forward Network
@@ -195,24 +191,24 @@ class Transformer {
         const auto W2 = weights_->W2(layer);
         const auto W3 = weights_->W3(layer);
 
-        op_set_->MatMul<T>(W1, XB, HB);
-        op_set_->MatMul<T>(W3, XB, HB2);
+        op_set_.MatMul<T>(W1, XB, HB);
+        op_set_.MatMul<T>(W3, XB, HB2);
 
-        op_set_->SiLU_EWMul<T>(HB, HB2, HB);
+        op_set_.SiLU_EWMul<T>(HB, HB2, HB);
 
-        op_set_->MatMul<T>(W2, HB, XB);
+        op_set_.MatMul<T>(W2, HB, XB);
       }
 
       // Residual Connection
-      { op_set_->ElementwiseAdd<T>(X, XB, X); }
+      { op_set_.ElementwiseAdd<T>(X, XB, X); }
     }
 
     // Final RMSNorm
     const auto kRmsFinalWeight = weights_->RMSFinalWeight();
-    { op_set_->RmsNorm<T>(X, kRmsFinalWeight, X); }
+    { op_set_.RmsNorm<T>(X, kRmsFinalWeight, X); }
 
     // Logits
-    { op_set_->MatMul<T>(weights_->WCLS(), X, run_state_->Logits()); }
+    { op_set_.MatMul<T>(weights_->WCLS(), X, run_state_->Logits()); }
 
     return run_state_->Logits();
   }
@@ -279,7 +275,7 @@ class Transformer {
   ssize_t file_size_;  // size of the memory mapped file
   T *mapped_file_;     // pointer to the memory mapped file
 
-  std::unique_ptr<OpSet> op_set_;
+  OpSet &op_set_;
 };
 
 }  // namespace llama

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 // For random number generation
-#include <op_cpu.hpp>
+#include <op.hpp>
 #include <random>
 
 #include "encoder.hpp"
@@ -32,7 +32,8 @@ class MatMulTest : public ::testing::Test {
       (*input_)[i] = dis(gen);
     }
 
-    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    transformer_ =
+        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <op_cpu.hpp>
+#include <op.hpp>
 
 #include "encoder.hpp"
 #if defined(USE_LLAMA2)
@@ -12,7 +12,8 @@
 class ForwardTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    transformer_ =
+        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -27,6 +28,8 @@ class ForwardTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 };
 
 TEST_F(ForwardTest, Test) {

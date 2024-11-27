@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <op_cpu.hpp>
+#include <op.hpp>
 
 #include "encoder.hpp"
 #if defined(USE_LLAMA2)
@@ -14,8 +14,8 @@ class GenerateTest : public ::testing::Test {
   void SetUp() override {
     llama::Transformer<float>::RunConfig run_config = {temperature_, topp_,
                                                        rng_seed_};
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kChkPointPath, run_config);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kChkPointPath, run_config, *op_set_);
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -30,6 +30,8 @@ class GenerateTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 
   // float temperature_ = 0.8f;
   float temperature_ = 0.0f;

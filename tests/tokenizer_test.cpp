@@ -19,7 +19,8 @@ class TokenizerTest : public ::testing::Test {
     reference::build_tokenizer(&ref_tokenizer_, kTokenizerBinPath.c_str(),
                                ref_transformer_.config.vocab_size);
 
-    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    transformer_ =
+        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -34,6 +35,8 @@ class TokenizerTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
