@@ -47,10 +47,10 @@ class Transformer {
               const OpSet::OpType op_type = OpSet::OpType::CPU)
       : run_config_(run_config) {
     load_checkpoint(ckpt_file);
-    sampler_ =
-        std::make_unique<Sampler>(config_->VocabSize(), run_config_.temperature,
-                                  run_config_.topp, run_config_.rng_seed);
     op_set_ = CreateOpSet(op_type);
+    sampler_ = std::make_unique<Sampler>(
+        config_->VocabSize(), run_config_.temperature, run_config_.topp,
+        run_config_.rng_seed, *op_set_);
   }
 
   Transformer(const std::string &ckpt_file,

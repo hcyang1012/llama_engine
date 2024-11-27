@@ -17,7 +17,7 @@
 #include <vector>
 
 // Project Headers
-#include <op_cpu.hpp>
+#include <op.hpp>
 #include <rng.hpp>
 #include <tensor.hpp>
 
@@ -37,12 +37,13 @@ class Sampler {
   };
 
   Sampler(const size_t vocab_size, const float temperature, const float topp,
-          const uint64_t rng_seed)
+          const uint64_t rng_seed, OpSet &op_set)
       : vocab_size_(vocab_size),
         temperature_(temperature),
         topp_(topp),
         prob_indices_(vocab_size),
-        rng_(std::make_unique<ReferenceRng>(rng_seed)) {}
+        rng_(std::make_unique<ReferenceRng>(rng_seed)),
+        op_set_(op_set) {}
 
   const size_t &VocabSize() const { return vocab_size_; }
   const auto &ProbIndices() const { return prob_indices_; }
@@ -63,7 +64,7 @@ class Sampler {
       for (size_t q = 0; q < VocabSize(); q++) {
         logits_copy[{q}] = logits[{q}] / Temperature();
       }
-      SoftMax<T>::Compute(logits_copy, logits_copy);
+      op_set_.SoftMax<T>(logits_copy, logits_copy);
       float coin = rng_->RandomF32();
 
       if (TopP() <= 0 || TopP() >= 1) {
@@ -82,6 +83,8 @@ class Sampler {
   const float topp_;
 
   std::unique_ptr<Rng> rng_;
+
+  OpSet &op_set_;
 
   template <typename T>
   int sample_multiple(const Tensor<T> &probabilities, const float coin) {

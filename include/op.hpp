@@ -68,6 +68,28 @@ class OpSet {
     RoPEImpl(position, config, Q.GetData(), K.GetData(), typeid(T));
   }
 
+  template <typename T>
+  void SoftMax(const Tensor<T>& input, Tensor<T>& output) {
+    CHECK(input.GetShape() == output.GetShape())
+        << "Input and output tensor should have the same shape";
+    CHECK_LE(input.GetShape().GetRank(), 2)
+        << "Input tensor should be 1D or 2D tensor";
+
+    const size_t kStride = input.GetShape().GetRank() == 1
+                               ? input.GetShape()[0]
+                               : input.GetShape()[1];
+
+    if (input.GetShape().GetRank() == 1) {
+      SoftMaxImpl(input.GetData(), output.GetData(), kStride, typeid(T));
+    } else {
+      const size_t kBatchSize = input.GetShape()[0];
+      for (size_t batch = 0; batch < kBatchSize; batch++) {
+        SoftMaxImpl(input.GetData() + batch * kStride,
+                    output.GetData() + batch * kStride, kStride, typeid(T));
+      }
+    }
+  }
+
   virtual ~OpSet() = default;
 
  protected:
@@ -80,6 +102,9 @@ class OpSet {
 
   virtual void RoPEImpl(const size_t position, const Config& config, void* Q,
                         void* K, const std::type_info& type) = 0;
+
+  virtual void SoftMaxImpl(const void* input, void* output, const size_t size,
+                           const std::type_info& type) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -113,6 +138,16 @@ class OpSetCpu : public OpSet {
     if (type == typeid(float)) {
       OPSetCpu::RoPE<float>::Compute(position, config, static_cast<float*>(Q),
                                      static_cast<float*>(K));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
+  }
+
+  void SoftMaxImpl(const void* input, void* output, const size_t size,
+                   const std::type_info& type) override {
+    if (type == typeid(float)) {
+      OPSetCpu::SoftMax<float>::Compute(static_cast<const float*>(input),
+                                        static_cast<float*>(output), size);
     } else {
       LOG(FATAL) << "Unsupported data type";
     }

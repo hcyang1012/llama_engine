@@ -146,8 +146,6 @@ class RoPE {
   }
 };
 
-}  // namespace OPSetCpu
-
 template <typename T>
 class SoftMax {
  public:
@@ -191,6 +189,8 @@ class SoftMax {
  private:
 };
 
+}  // namespace OPSetCpu
+
 template <typename T>
 class Attention {
  public:
@@ -233,7 +233,7 @@ class Attention {
     }
 
     // Calculate the attention score and store it back to the same buffer
-    SoftMax<T>::Compute(attention_scores, attention_scores);
+    OPSetCpu::SoftMax<T>::Compute(attention_scores, attention_scores);
 
     // Weighted sum of the values, store back into output
     std::fill(output.GetData(), output.GetData() + output.GetShape().GetSize(),
