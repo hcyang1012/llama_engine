@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 #include "tensor.hpp"
 #include "transformer.hpp"
 class SamplerTest : public ::testing::Test {

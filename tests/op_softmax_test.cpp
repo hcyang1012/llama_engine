@@ -3,7 +3,7 @@
 #include <random>
 
 #include "op.hpp"
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 #include "tensor.hpp"
 
 TEST(SoftMaxTest, BATCH_TEST) {

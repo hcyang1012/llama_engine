@@ -4,7 +4,7 @@
 #include <string>
 
 #include "encoder.hpp"
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 

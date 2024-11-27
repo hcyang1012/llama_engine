@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 #include "transformer.hpp"
 class LoaderTest : public ::testing::Test {
  public:

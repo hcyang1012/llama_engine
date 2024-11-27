@@ -41,7 +41,7 @@ add_executable(llama2_cpp_dummy ${CMAKE_SOURCE_DIR}/main.cpp)
 target_include_directories(llama2_cpp_dummy PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(llama2_cpp_dummy llama2_cpp_dummy_lib)
 
-add_executable(llama2_reference ${CMAKE_SOURCE_DIR}/reference.cpp)
+add_executable(llama2_reference ${CMAKE_SOURCE_DIR}/references/reference_llama2.cpp)
 target_compile_definitions(llama2_reference PUBLIC -DINCLUDE_MAIN)
 
 

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "op.hpp"
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 
 TEST(OpArgmaxTest, Test1) {
   std::vector<float> input;

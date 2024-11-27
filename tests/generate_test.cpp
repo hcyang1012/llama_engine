@@ -2,7 +2,7 @@
 
 #include "encoder.hpp"
 #include "op.hpp"
-#include "reference.cpp"
+#include "references/reference_llama2.cpp"
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
