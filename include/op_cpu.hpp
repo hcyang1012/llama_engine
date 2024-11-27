@@ -272,8 +272,6 @@ class ElementwiseAdd {
   }
 };
 
-}  // namespace OPSetCpu
-
 template <typename T>
 class SiLU_EWMul {
  public:
@@ -309,6 +307,8 @@ class SiLU_EWMul {
     }
   }
 };
+
+}  // namespace OPSetCpu
 
 template <typename T>
 class ArgMax {

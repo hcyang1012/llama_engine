@@ -198,7 +198,7 @@ class Transformer {
         op_set_->MatMul<T>(W1, XB, HB);
         op_set_->MatMul<T>(W3, XB, HB2);
 
-        SiLU_EWMul<T>::Compute(HB, HB2, HB);
+        op_set_->SiLU_EWMul<T>(HB, HB2, HB);
 
         op_set_->MatMul<T>(W2, HB, XB);
       }

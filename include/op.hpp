@@ -122,6 +122,18 @@ class OpSet {
     ElementwiseAddImpl(&left, &right, &output, size);
   }
 
+  template <typename T>
+  void SiLU_EWMul(const Tensor<T>& input, const Tensor<T>& weight,
+                  Tensor<T>& output) {
+    DCHECK_EQ(input.GetShape(), weight.GetShape())
+        << "Input tensors should have the same shape";
+    DCHECK_EQ(input.GetShape(), output.GetShape())
+        << "Output tensor should have the same shape as the input tensor";
+
+    const size_t size = input.GetShape().GetSize();
+    SiLU_EWMulImpl(&input, &weight, &output, size);
+  }
+
   virtual ~OpSet() = default;
 
  protected:
@@ -145,6 +157,9 @@ class OpSet {
 
   virtual void ElementwiseAddImpl(const void* left, const void* right,
                                   void* output, const size_t size) = 0;
+
+  virtual void SiLU_EWMulImpl(const void* input, const void* weight,
+                              void* output, const size_t size) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -213,6 +228,14 @@ class OpSetCpu : public OpSet {
     OPSetCpu::ElementwiseAdd<float>::Compute(
         *static_cast<const Tensor<float>*>(left),
         *static_cast<const Tensor<float>*>(right),
+        *static_cast<Tensor<float>*>(output));
+  }
+
+  void SiLU_EWMulImpl(const void* input, const void* weight, void* output,
+                      const size_t size) override {
+    OPSetCpu::SiLU_EWMul<float>::Compute(
+        *static_cast<const Tensor<float>*>(input),
+        *static_cast<const Tensor<float>*>(weight),
         *static_cast<Tensor<float>*>(output));
   }
 
