@@ -37,9 +37,37 @@ class OpSet {
                 typeid(T));
   }
 
+  template <typename T>
+  void MatMul(const Tensor<T>& weight, const Tensor<T>& input, Tensor<T>& out) {
+    CHECK(input.GetShape().GetRank() <= 2)
+        << "Input tensor should be 2D tensor or vector";
+    CHECK(weight.GetShape().GetRank() == 2)
+        << "Weight tensor should be 2D tensor";
+    CHECK(out.GetShape().GetRank() <= 2)
+        << "Output tensor should be 2D tensor or vector";
+
+    const auto& kOutShape = out.GetShape();
+    if (out.GetShape().GetRank() == 2) {
+      CHECK_EQ(kOutShape[1], weight.GetShape()[1]);
+    } else {
+      const Shape kExpectedShape({weight.GetShape()[1]});
+      CHECK_EQ(kOutShape, kExpectedShape)
+          << "Output tensor should have the shape of " << kExpectedShape;
+    }
+
+    MatMulImpl(weight.GetData(), input.GetData(), weight.GetShape()[0],
+               weight.GetShape()[1], out.GetData(), typeid(T));
+  }
+
+  virtual ~OpSet() = default;
+
  protected:
   virtual void RmsNormImpl(const void* x, const void* weight, const size_t size,
                            void* out, const std::type_info& type) = 0;
+
+  virtual void MatMulImpl(const void* weight, const void* input, const size_t n,
+                          const size_t d, void* out,
+                          const std::type_info& type) = 0;
 };
 
 class OpSetCpu : public OpSet {
@@ -51,6 +79,18 @@ class OpSetCpu : public OpSet {
       OPSetCpu::RmsNorm<float>::Compute(static_cast<const float*>(x),
                                         static_cast<const float*>(weight), size,
                                         static_cast<float*>(out));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
+  }
+
+  void MatMulImpl(const void* weight, const void* input, const size_t n,
+                  const size_t d, void* out,
+                  const std::type_info& type) override {
+    if (type == typeid(float)) {
+      OPSetCpu::MatMul<float>::Compute(static_cast<const float*>(weight),
+                                       static_cast<const float*>(input), n, d,
+                                       static_cast<float*>(out));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }

@@ -55,7 +55,6 @@ class RmsNorm {
     }
   }
 };
-}  // namespace OPSetCpu
 
 template <typename T>
 class MatMul {
@@ -109,6 +108,8 @@ class MatMul {
     }
   }
 };
+
+}  // namespace OPSetCpu
 
 template <typename T>
 class RoPE {

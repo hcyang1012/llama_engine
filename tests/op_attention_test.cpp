@@ -110,17 +110,17 @@ TEST_F(AttentionTest, ForwardTest) {
                         ref_weights.wv + layer * kDim * kRefKVDim, kDim,
                         kRefKVDim);
 
-      llama::MatMul<float>::Compute(
+      op_set_->MatMul<float>(
           kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
           transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
       auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
-      llama::MatMul<float>::Compute(
+      op_set_->MatMul<float>(
           kWeights.WK(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer_->GetRunState().XB(), K);
 
       auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
-      llama::MatMul<float>::Compute(
+      op_set_->MatMul<float>(
           kWeights.WV(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer_->GetRunState().XB(), V);
 

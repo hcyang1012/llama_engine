@@ -69,7 +69,7 @@ class MatMulTest : public ::testing::Test {
 TEST_F(MatMulTest, MatMulTest) {
   std::vector<float> expected_o(n);
   llama::Tensor<float> actual({n});
-  llama::MatMul<float>::Compute(*weight_, *input_, actual);
+  op_set_->MatMul<float>(*weight_, *input_, actual);
   reference::matmul(expected_o.data(), input_->GetData(), weight_->GetData(), d,
                     n);
 
@@ -116,7 +116,7 @@ TEST_F(MatMulTest, ForwardTest) {
     ref_run_state.v = ref_run_state.value_cache + kLayerOffset + kPos * kKVDim;
 
     // Calculate Q
-    llama::MatMul<float>::Compute(
+    op_set_->MatMul<float>(
         kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
         transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
@@ -128,7 +128,7 @@ TEST_F(MatMulTest, ForwardTest) {
 
     // Calculate K
     auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
-    llama::MatMul<float>::Compute(
+    op_set_->MatMul<float>(
         kWeights.WK(layer).ReShape(llama::Shape({kDim, kKVDim})),
         transformer_->GetRunState().XB(), K);
     reference::matmul(ref_run_state.k, ref_run_state.xb,
@@ -138,7 +138,7 @@ TEST_F(MatMulTest, ForwardTest) {
 
     // Calculate V
     auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
-    llama::MatMul<float>::Compute(
+    op_set_->MatMul<float>(
         kWeights.WV(layer).ReShape(llama::Shape({kDim, kKVDim})),
         transformer_->GetRunState().XB(), V);
     reference::matmul(ref_run_state.v, ref_run_state.xb,

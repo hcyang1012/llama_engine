@@ -142,13 +142,15 @@ class Transformer {
 
       // Calculate Q, K, V
       {
-        MatMul<T>::Compute(
+        op_set_->MatMul<T>(
             weights_->WQ(layer).ReShape({kInputEmbedDim, kInputEmbedDim}),
             run_state_->XB(), Q);
-        MatMul<T>::Compute(
+
+        op_set_->MatMul<T>(
             weights_->WK(layer).ReShape({kInputEmbedDim, kKVDim}),
             run_state_->XB(), K);
-        MatMul<T>::Compute(
+
+        op_set_->MatMul<T>(
             weights_->WV(layer).ReShape({kInputEmbedDim, kKVDim}),
             run_state_->XB(), V);
       }
@@ -174,7 +176,8 @@ class Transformer {
       {
         const auto WO =
             weights_->WO(layer).ReShape({kInputEmbedDim, kInputEmbedDim});
-        MatMul<T>::Compute(WO, XB, XB2);
+
+        op_set_->MatMul<T>(WO, run_state_->XB(), XB2);
       }
 
       // Residual Connection
@@ -192,12 +195,12 @@ class Transformer {
         const auto W2 = weights_->W2(layer);
         const auto W3 = weights_->W3(layer);
 
-        MatMul<T>::Compute(W1, XB, HB);
-        MatMul<T>::Compute(W3, XB, HB2);
+        op_set_->MatMul<T>(W1, XB, HB);
+        op_set_->MatMul<T>(W3, XB, HB2);
 
         SiLU_EWMul<T>::Compute(HB, HB2, HB);
 
-        MatMul<T>::Compute(W2, HB, run_state_->XB());
+        op_set_->MatMul<T>(W2, HB, XB);
       }
 
       // Residual Connection
@@ -209,7 +212,7 @@ class Transformer {
     { op_set_->RmsNorm<T>(X, kRmsFinalWeight, X); }
 
     // Logits
-    { MatMul<T>::Compute(weights_->WCLS(), X, run_state_->Logits()); }
+    { op_set_->MatMul<T>(weights_->WCLS(), X, run_state_->Logits()); }
 
     return run_state_->Logits();
   }
