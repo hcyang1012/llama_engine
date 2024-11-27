@@ -51,9 +51,9 @@ class Sampler {
 
   template <typename T>
   int Sample(const Tensor<T> &logits) {
-    CHECK_EQ(logits.GetShape().GetRank(), 1)
+    DCHECK_EQ(logits.GetShape().GetRank(), 1)
         << "Input tensor should be 1D tensor";
-    CHECK_EQ(logits.GetShape()[0], VocabSize())
+    DCHECK_EQ(logits.GetShape()[0], VocabSize())
         << "Input tensor should have the same size as the vocab size";
     int next;
     if (Temperature() == 0.0f) {
@@ -85,7 +85,7 @@ class Sampler {
 
   template <typename T>
   int sample_multiple(const Tensor<T> &probabilities, const float coin) {
-    CHECK_EQ(probabilities.GetShape().GetRank(), 1)
+    DCHECK_EQ(probabilities.GetShape().GetRank(), 1)
         << "Input tensor should be 1D tensor";
     float cdf = 0.0f;
     for (size_t i = 0; i < probabilities.GetShape()[0]; i++) {
@@ -99,7 +99,7 @@ class Sampler {
 
   template <typename T>
   int sample_top_p(const Tensor<T> &probs, const float coin) {
-    CHECK_EQ(probs.GetShape().GetRank(), 1)
+    DCHECK_EQ(probs.GetShape().GetRank(), 1)
         << "Input tensor should be 1D tensor";
     const size_t N = VocabSize();
 

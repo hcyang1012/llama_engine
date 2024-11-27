@@ -9,33 +9,34 @@
 // C++ System-Headers
 
 // Project Headers
-#include <config.hpp>
+#include <dtypes.h>
 
+#include <config.hpp>
 // Third-party Headers
 
 namespace llama2 {
 
 Config::Config(std::ifstream &config_file) { load_config(config_file); }
 
-int32_t Config::Dim() const { return kDim; }
+llama_uint32_t Config::Dim() const { return kDim; }
 
-int32_t Config::HiddenDim() const { return kHiddenDim; }
+llama_uint32_t Config::HiddenDim() const { return kHiddenDim; }
 
-int32_t Config::NumLayers() const { return kNumLayers; }
+llama_uint32_t Config::NumLayers() const { return kNumLayers; }
 
-int32_t Config::NumHeads() const { return kNumHeads; }
+llama_uint32_t Config::NumHeads() const { return kNumHeads; }
 
-int32_t Config::NumKVHeads() const { return kNumKVHeads; }
+llama_uint32_t Config::NumKVHeads() const { return kNumKVHeads; }
 
-int32_t Config::HeadDim() const { return kHeadDim; }
+llama_uint32_t Config::HeadDim() const { return kHeadDim; }
 
-int32_t Config::KVHeadDim() const { return kKVHeadDim; }
+llama_uint32_t Config::KVHeadDim() const { return kKVHeadDim; }
 
-int32_t Config::KVMul() const { return kKVMul; }
+llama_uint32_t Config::KVMul() const { return kKVMul; }
 
-int32_t Config::VocabSize() const { return kVocabSize; }
+llama_uint32_t Config::VocabSize() const { return kVocabSize; }
 
-int32_t Config::SeqLen() const { return kSeqLen; }
+llama_uint32_t Config::SeqLen() const { return kSeqLen; }
 
 void Config::load_config(std::ifstream &config_file) {
   config_file.read(reinterpret_cast<char *>(&kDim), sizeof(kDim));
@@ -46,7 +47,7 @@ void Config::load_config(std::ifstream &config_file) {
   config_file.read(reinterpret_cast<char *>(&kVocabSize), sizeof(kVocabSize));
   config_file.read(reinterpret_cast<char *>(&kSeqLen), sizeof(kSeqLen));
 
-  kVocabSize = std::abs(VocabSize());
+  kVocabSize = VocabSize();
   kKVHeadDim = Dim() * NumKVHeads() / NumHeads();
   kHeadDim = Dim() / NumHeads();
   kKVMul = NumHeads() / NumKVHeads();

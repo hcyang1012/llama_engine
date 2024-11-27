@@ -118,18 +118,25 @@ class Transformer {
     auto embed = weights_->TokenEmbeddingTable() + token * kInputEmbedDim;
     std::copy(embed, embed + kInputEmbedDim, run_state_->X().GetData());
 
+    auto Q = run_state_->Q();
+    auto X = run_state_->X();
+    auto XB = run_state_->XB();
+    auto XB2 = run_state_->XB2();
+    auto HB = run_state_->HB();
+    auto HB2 = run_state_->HB2();
+
     for (size_t layer = 0; layer < config_->NumLayers(); ++layer) {
       // RMSNorm
       {
         const auto kRmsAttWeight = weights_->RMSAttnWeight(layer);
-        RmsNorm<T>::Compute(run_state_->X(), kRmsAttWeight, run_state_->XB());
+        RmsNorm<T>::Compute(X, kRmsAttWeight, XB);
       }
+
+      auto K = run_state_->K(layer, pos).ReShape({kKVDim});
+      auto V = run_state_->V(layer, pos).ReShape({kKVDim});
 
       // Calculate Q, K, V
       {
-        auto &Q = run_state_->Q();
-        auto K = run_state_->K(layer, pos).ReShape({kKVDim});
-        auto V = run_state_->V(layer, pos).ReShape({kKVDim});
         MatMul<T>::Compute(
             weights_->WQ(layer).ReShape({kInputEmbedDim, kInputEmbedDim}),
             run_state_->XB(), Q);
@@ -142,78 +149,62 @@ class Transformer {
       }
 
       // RoPE
-      {
-        auto &Q = run_state_->Q();
-        auto K = run_state_->K(layer, pos).ReShape({kKVDim});
-        RoPE<T>::Compute(pos, *config_, Q, K);
-      }
+      { RoPE<T>::Compute(pos, *config_, Q, K); }
 
       // Multi-Head Attention
-      for (size_t head_idx = 0; head_idx < config_->NumHeads(); ++head_idx) {
-        const size_t kKVHeadIdx = head_idx / config_->KVMul();
+      const size_t kNumHeads = config_->NumHeads();
+      const size_t kKVMul = config_->KVMul();
+      for (size_t head_idx = 0; head_idx < kNumHeads; ++head_idx) {
+        const size_t kKVHeadIdx = head_idx / kKVMul;
         auto Q = run_state_->Q(head_idx);
-        auto K = run_state_->K(layer);
-        auto V = run_state_->V(layer);
+        auto K_layer = run_state_->K(layer);
+        auto V_layer = run_state_->V(layer);
 
         auto XB = run_state_->XB(head_idx);
-        Attention<T>::Compute(Q, K, V, *config_, pos, kKVHeadIdx, XB);
+        Attention<T>::Compute(Q, K_layer, V_layer, *config_, pos, kKVHeadIdx,
+                              XB);
       }
 
       // Matmul
       {
-        const auto XB = run_state_->XB();
         const auto WO =
             weights_->WO(layer).ReShape({kInputEmbedDim, kInputEmbedDim});
-        auto XB2 = run_state_->XB2();
         MatMul<T>::Compute(WO, XB, XB2);
       }
 
       // Residual Connection
-      {
-        auto X = run_state_->X();
-        const auto &XB2 = run_state_->XB2();
-        ElementwiseAdd<T>::Compute(X, XB2, X);
-      }
+      { ElementwiseAdd<T>::Compute(X, XB2, X); }
 
       // Feed Forward Network RMSNorm
       {
-        RmsNorm<T>::Compute(run_state_->X(), weights_->RMSFFNWeight(layer),
-                            run_state_->XB());
+        const auto WRMSFFN = weights_->RMSFFNWeight(layer);
+        RmsNorm<T>::Compute(X, WRMSFFN, XB);
       }
 
       // SWiGLU Feed Forward Network
       {
-        MatMul<T>::Compute(weights_->W1(layer), run_state_->XB(),
-                           run_state_->HB());
-        MatMul<T>::Compute(weights_->W3(layer), run_state_->XB(),
-                           run_state_->HB2());
+        const auto W1 = weights_->W1(layer);
+        const auto W2 = weights_->W2(layer);
+        const auto W3 = weights_->W3(layer);
 
-        SiLU_EWMul<T>::Compute(run_state_->HB(), run_state_->HB2(),
-                               run_state_->HB());
+        MatMul<T>::Compute(W1, XB, HB);
+        MatMul<T>::Compute(W3, XB, HB2);
 
-        MatMul<T>::Compute(weights_->W2(layer), run_state_->HB(),
-                           run_state_->XB());
+        SiLU_EWMul<T>::Compute(HB, HB2, HB);
+
+        MatMul<T>::Compute(W2, HB, run_state_->XB());
       }
 
       // Residual Connection
-      {
-        auto &X = run_state_->X();
-        const auto &XB = run_state_->XB();
-        ElementwiseAdd<T>::Compute(X, XB, X);
-      }
+      { ElementwiseAdd<T>::Compute(X, XB, X); }
     }
 
     // Final RMSNorm
-    {
-      const auto kRmsFinalWeight = weights_->RMSFinalWeight();
-      RmsNorm<T>::Compute(run_state_->X(), kRmsFinalWeight, run_state_->X());
-    }
+    const auto kRmsFinalWeight = weights_->RMSFinalWeight();
+    { RmsNorm<T>::Compute(X, kRmsFinalWeight, X); }
 
     // Logits
-    {
-      MatMul<T>::Compute(weights_->WCLS(), run_state_->X(),
-                         run_state_->Logits());
-    }
+    { MatMul<T>::Compute(weights_->WCLS(), X, run_state_->Logits()); }
 
     return run_state_->Logits();
   }
@@ -262,7 +253,7 @@ class Transformer {
       if (std::isprint(byte) || std::isspace(byte)) {
         os << str;
         if (print) {
-          std::cout << str;
+          std::cout << str << std::flush;
         }
       }
     }

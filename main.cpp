@@ -7,6 +7,8 @@
 #include <iostream>
 
 // Project Headers
+#include <dtypes.h>
+
 #include <transformer.hpp>
 
 #include "reference.cpp"
@@ -37,10 +39,10 @@ int main(int argc, char *argv[]) {
       1.0f;  // 0.0 = greedy deterministic. 1.0 = original. don't set higher
   float topp =
       0.9f;  // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-  int steps = 256;                  // number of steps to run for
-  char *prompt = NULL;              // prompt string
-  unsigned long long rng_seed = 0;  // seed rng with time by default
-  std::string mode("generate");     // mode to run in
+  llama2::llama_uint32_t steps = 256;  // number of steps to run for
+  char *prompt = NULL;                 // prompt string
+  unsigned long long rng_seed = 0;     // seed rng with time by default
+  std::string mode("generate");        // mode to run in
   char *system_prompt =
       NULL;  // the (optional) system prompt to use in chat mode
 
