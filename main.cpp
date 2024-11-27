@@ -11,7 +11,9 @@
 
 #include <transformer.hpp>
 
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 // Third-party Headers
 
 void error_usage(const std::string &program_name) {

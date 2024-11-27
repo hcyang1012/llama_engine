@@ -34,6 +34,18 @@ else()
     add_compile_options(-g)
 endif()
 
+# Add Build options to select the version of llama: LLAMA2 or LLAMA3
+option(LLAMA_VERSION "Select the version of LLAMA to use" "LLAMA2")
+if (${LLAMA_VERSION} STREQUAL "LLAMA2")
+    add_compile_definitions(USE_LLAMA2)
+elseif (${LLAMA_VERSION} STREQUAL "LLAMA3")
+    add_compile_definitions(USE_LLAMA3)
+else()
+    # Default to LLAMA2
+    add_compile_definitions(USE_LLAMA2)
+    message(WARNING "Invalid value for LLAMA_VERSION. Defaulting to LLAMA2")
+endif()
+
 add_library(llama2_cpp_dummy_lib STATIC ${LLAMA2_LIB_SOURCES})
 target_include_directories(llama2_cpp_dummy_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(llama2_cpp_dummy_lib glog::glog)

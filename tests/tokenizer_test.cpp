@@ -5,7 +5,9 @@
 
 #include <algorithm>
 
+#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
+#endif
 #include "transformer.hpp"
 
 class TokenizerTest : public ::testing::Test {
