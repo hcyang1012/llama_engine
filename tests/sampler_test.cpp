@@ -18,12 +18,15 @@ class SamplerTest : public ::testing::Test {
   void SetUp() override {
     // code here will execute just before the test ensues
     build_transformer(&ref_transformer_, kChkPointPath.c_str());
-    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    transformer_ =
+        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
 
     build_sampler(&ref_sampler_, ref_transformer_.config.vocab_size,
                   kTemperature, kTopP, kRngSeed);
+
     sampler_ = std::make_unique<llama::Sampler>(
-        transformer_->GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed);
+        transformer_->GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed,
+        *op_set_);
   }
 
   void TearDown() override {
@@ -38,6 +41,8 @@ class SamplerTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Sampler> sampler_;
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 
   reference::Transformer ref_transformer_;
   reference::Sampler ref_sampler_;

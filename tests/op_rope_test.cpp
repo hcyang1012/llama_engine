@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
 // For random number generation
+#include <op.hpp>
 #include <random>
 
 #include "encoder.hpp"
-#include "op.hpp"
 #if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
 #endif
@@ -14,7 +14,8 @@
 class RopeTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    transformer_ = std::make_unique<llama::Transformer<float>>(kChkPointPath);
+    transformer_ =
+        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -51,6 +52,8 @@ class RopeTest : public ::testing::Test {
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 };
 
 TEST_F(RopeTest, ForwardTest) {
@@ -86,11 +89,9 @@ TEST_F(RopeTest, ForwardTest) {
       reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
                          ref_weights.rms_att_weight + layer * kDim, kDim);
 
-      llama::RmsNorm<float>::Compute(
-
-          transformer_->GetRunState().X().GetData(),
-          kWeights.RMSAttnWeight() + layer * kDim, kDim,
-          transformer_->GetRunState().XB().GetData());
+      op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
+                              kWeights.RMSAttnWeight(layer),
+                              transformer_->GetRunState().XB());
 
       EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
                              transformer_->GetRunState().XB().GetData()));
@@ -114,17 +115,17 @@ TEST_F(RopeTest, ForwardTest) {
                         ref_weights.wv + layer * kDim * kRefKVDim, kDim,
                         kRefKVDim);
 
-      llama::MatMul<float>::Compute(
+      op_set_->MatMul<float>(
           kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
           transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
       auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
-      llama::MatMul<float>::Compute(
+      op_set_->MatMul<float>(
           kWeights.WK(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer_->GetRunState().XB(), K);
 
       auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
-      llama::MatMul<float>::Compute(
+      op_set_->MatMul<float>(
           kWeights.WV(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer_->GetRunState().XB(), V);
 
@@ -160,7 +161,7 @@ TEST_F(RopeTest, ForwardTest) {
       }
       auto Q = transformer_->GetRunState().Q();
       auto K = transformer_->GetRunState().K(0, kPos);
-      llama::RoPE<float>::Compute(kPos, transformer_->GetConfig(), Q, K);
+      op_set_->RoPE<float>(kPos, transformer_->GetConfig(), Q, K);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
                              transformer_->GetRunState().Q().GetData()));

@@ -9,6 +9,7 @@
 // Project Headers
 #include <dtypes.h>
 
+#include <op.hpp>
 #include <transformer.hpp>
 
 #if defined(USE_LLAMA2)
@@ -101,12 +102,18 @@ int main(int argc, char *argv[]) {
   if (steps < 0) {
     steps = 0;
   }
+  const std::string kDefaultPrompt = "hello, how are you?";
+  if (prompt == NULL) {
+    prompt = const_cast<char *>(kDefaultPrompt.c_str());
+  }
 
   const llama::Transformer<float>::RunConfig run_config = {temperature, topp,
                                                            rng_seed};
 
+  auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
   // build the Transformer via the model .bin file
-  llama::Transformer<float> transformer(checkpoint_path, run_config);
+  llama::Transformer<float> transformer(checkpoint_path, run_config, *op_set);
+
   if (steps == 0) {
     steps = transformer.GetConfig().SeqLen();
   }
@@ -140,7 +147,9 @@ int main(int argc, char *argv[]) {
     }
 
   } else if (mode == "chat") {
-    // transformer.Chat(tokenizer, sampler, steps, prompt, system_prompt);
+    // transformer.Chat(tokenizer,
+    // sampler, steps, prompt,
+    // system_prompt);
   } else {
     std::cerr << "Unknown mode: " << mode << std::endl;
     error_usage(argv[0]);

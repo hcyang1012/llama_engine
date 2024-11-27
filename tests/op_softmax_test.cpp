@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <op.hpp>
 #include <random>
-
-#include "op.hpp"
 #if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
 #endif
@@ -33,7 +32,10 @@ TEST(SoftMaxTest, BATCH_TEST) {
       input[i] = static_cast<float>(i);
     }
 
-    llama::SoftMax<float>::Compute(input, output);
+    auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+
+    op_set->SoftMax<float>(input, output);
+
     for (size_t b = 0; b < batch; b++) {
       reference::softmax(reference_inout.data() + b * dim, dim);
       for (size_t i = 0; i < dim; i++) {

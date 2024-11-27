@@ -13,7 +13,8 @@ class LoaderTest : public ::testing::Test {
   void SetUp() override {
     // code here will execute just before the test ensues
     reference::build_transformer(&ref_transformer_, kCheckPointPath.c_str());
-    transformer_ = std::make_unique<llama::Transformer<float>>(kCheckPointPath);
+    transformer_ =
+        std::make_unique<llama::Transformer<float>>(kCheckPointPath, *op_set_);
   }
 
   void TearDown() override {
@@ -23,6 +24,8 @@ class LoaderTest : public ::testing::Test {
 
   reference::Transformer ref_transformer_;
   std::unique_ptr<llama::Transformer<float>> transformer_;
+  std::unique_ptr<llama::OpSet> op_set_ =
+      llama::CreateOpSet(llama::OpSet::OpType::CPU);
 
   const std::string kCheckPointPath = "stories15M.bin";
 };
@@ -46,7 +49,8 @@ int n_kv_heads;  // number of key/value heads (can be < query heads because of
 int vocab_size;  // vocabulary size, usually 256 (byte-level)
 int seq_len;     // max sequence length
    */
-  llama::Transformer<float> transformer(kCheckPointPath);
+  auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+  llama::Transformer<float> transformer(kCheckPointPath, *op_set);
 
   const auto& config = transformer_->GetConfig();
 
