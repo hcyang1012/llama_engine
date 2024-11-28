@@ -17,6 +17,7 @@
 // For numeric_limits
 #include <limits>
 // Project Headers
+#include <dtypes.h>
 
 #include <config.hpp>
 #include <tensor.hpp>
@@ -222,7 +223,7 @@ class Attention {
     DCHECK_EQ(V.GetShape()[1], config.NumKVHeads());
     DCHECK_EQ(V.GetShape()[2], config.SeqLen());
 
-    Tensor<T> attention_scores({pos + 1});
+    Tensor<T> attention_scores({pos + 1}, DeviceType::CPU);
     for (size_t t = 0; t <= pos; ++t) {
       float score = 0.0f;
       for (size_t i = 0; i < kPerHeadDim; ++i) {

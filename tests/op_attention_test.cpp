@@ -20,8 +20,10 @@ class AttentionTest : public ::testing::Test {
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
     const size_t kSize = 4;
-    x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}));
-    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}));
+    x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
+                                                op_set_->GetDeviceType());
+    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
+                                                     op_set_->GetDeviceType());
 
     for (size_t i = 0; i < kSize; i++) {
       (*x_)[i] = dis(gen);
@@ -49,7 +51,7 @@ class AttentionTest : public ::testing::Test {
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::OpSet::OpType::CPU);
+      llama::CreateOpSet(llama::DeviceType::CPU);
 };
 
 TEST_F(AttentionTest, ForwardTest) {

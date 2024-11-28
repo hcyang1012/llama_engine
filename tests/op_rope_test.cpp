@@ -53,7 +53,7 @@ class RopeTest : public ::testing::Test {
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::OpSet::OpType::CPU);
+      llama::CreateOpSet(llama::DeviceType::CPU);
 };
 
 TEST_F(RopeTest, ForwardTest) {

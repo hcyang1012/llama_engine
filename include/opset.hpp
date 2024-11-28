@@ -24,8 +24,6 @@ namespace llama {
 // Virtual class for RMSNorm
 class OpSet {
  public:
-  enum class OpType { CPU };
-
   template <typename T>
   void RmsNorm(const Tensor<T>& x, const Tensor<T>& weight, Tensor<T>& out) {
     CHECK(x.GetShape() == weight.GetShape())
@@ -129,6 +127,8 @@ class OpSet {
         << "Input tensor should be 1D tensor";
     return ArgMaxImpl(&input, typeid(T));
   }
+
+  virtual DeviceType GetDeviceType() const = 0;
 
   virtual ~OpSet() = default;
 

@@ -244,11 +244,13 @@ class Transformer {
     T *weights_ptr = mapped_file_ + Config::Size() / sizeof(T);
 
     load_weights(weights_ptr);
-    run_state_ = std::make_unique<RunState<T>>(*config_);
+    run_state_ =
+        std::make_unique<RunState<T>>(*config_, op_set_.GetDeviceType());
   }
 
   void load_weights(T *weights_ptr) {
-    weights_ = std::make_unique<TransformerWeights<T>>(*config_, weights_ptr);
+    weights_ = std::make_unique<TransformerWeights<T>>(*config_, weights_ptr,
+                                                       op_set_.GetDeviceType());
   }
 
   void safe_print(const std::string &str, std::ostream &os, const bool print) {

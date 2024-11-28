@@ -25,6 +25,9 @@ namespace llama {
 class OpSetCpu : public OpSet {
  public:
   OpSetCpu() {}
+
+  DeviceType GetDeviceType() const override { return DeviceType::CPU; }
+
   void RmsNormImpl(const void* x, const void* weight, void* out,
                    const std::type_info& type) override {
     if (type == typeid(float)) {

@@ -24,8 +24,9 @@ class LoaderTest : public ::testing::Test {
 
   reference::Transformer ref_transformer_;
   std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::OpSet::OpType::CPU);
+
+  const llama::DeviceType kDeviceType = llama::DeviceType::CPU;
+  std::unique_ptr<llama::OpSet> op_set_ = llama::CreateOpSet(kDeviceType);
 
   const std::string kCheckPointPath = "stories15M.bin";
 };
@@ -36,6 +37,8 @@ class ConfigLoadTest : public LoaderTest {
   void SetUp() override { LoaderTest::SetUp(); }
 
   void TearDown() override { LoaderTest::TearDown(); }
+
+  const llama::DeviceType kDeviceType = kDeviceType;
 };
 
 TEST_F(ConfigLoadTest, ElementWiseCheck) {
@@ -49,7 +52,7 @@ int n_kv_heads;  // number of key/value heads (can be < query heads because of
 int vocab_size;  // vocabulary size, usually 256 (byte-level)
 int seq_len;     // max sequence length
    */
-  auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+  auto op_set = llama::CreateOpSet(kDeviceType);
   llama::Transformer<float> transformer(kCheckPointPath, *op_set);
 
   const auto& config = transformer_->GetConfig();
@@ -235,11 +238,12 @@ class RunStateAllocTest : public LoaderTest {
   void SetUp() override { LoaderTest::SetUp(); }
 
   void TearDown() override { LoaderTest::TearDown(); }
+  const llama::DeviceType kDeviceType = kDeviceType;
 };
 
 TEST_F(RunStateAllocTest, AllocSizeTest) {
   const auto& kConfig = transformer_->GetConfig();
-  llama::RunState<float> run_state(kConfig);
+  llama::RunState<float> run_state(kConfig, kDeviceType);
 
   const size_t kDim = kConfig.Dim();
   const size_t kHiddenDim = kConfig.HiddenDim();

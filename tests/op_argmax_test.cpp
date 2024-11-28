@@ -8,6 +8,7 @@
 #endif
 
 TEST(OpArgmaxTest, Test1) {
+  const llama::DeviceType device_type = llama::DeviceType::CPU;
   std::vector<float> input;
 
   std::random_device rd;
@@ -16,14 +17,14 @@ TEST(OpArgmaxTest, Test1) {
   for (int i = 0; i < 10; i++) {
     input.push_back(dis(gen));
   }
-  llama::Tensor<float> input_tensor({10});
+  llama::Tensor<float> input_tensor({10}, device_type);
   for (int i = 0; i < 10; i++) {
     input_tensor[i] = input[i];
   }
 
   size_t expected = reference::sample_argmax(input.data(), 10);
 
-  auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+  auto op_set = llama::CreateOpSet(device_type);
   auto actual = op_set->ArgMax<float>(input_tensor);
 
   EXPECT_EQ(expected, actual);
