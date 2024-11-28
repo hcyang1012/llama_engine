@@ -60,7 +60,7 @@ class Sampler {
     if (Temperature() == 0.0f) {
       next = op_set_.ArgMax<T>(logits);
     } else {
-      Tensor<T> logits_copy(logits.GetShape());
+      Tensor<T> logits_copy(logits.GetShape(), op_set_.GetDeviceType());
       for (size_t q = 0; q < VocabSize(); q++) {
         logits_copy[{q}] = logits[{q}] / Temperature();
       }

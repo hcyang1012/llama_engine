@@ -24,8 +24,9 @@ namespace llama {
 template <typename T>
 class TransformerWeights {
  public:
-  TransformerWeights(const Config &config, const T *p_weights)
-      : config(config) {
+  TransformerWeights(const Config &config, const T *p_weights,
+                     const DeviceType device_type)
+      : config(config), device_type_(device_type) {
     load_weights(p_weights, config.VocabSize() > 0);
   }
 
@@ -33,12 +34,12 @@ class TransformerWeights {
   const T *RMSAttnWeight() const { return rms_attn_weight_; }
   const Tensor<T> RMSAttnWeight(const size_t layer) const {
     return Tensor<T>(rms_attn_weight_ + layer * config.Dim(),
-                     {static_cast<size_t>(config.Dim())});
+                     {static_cast<size_t>(config.Dim())}, device_type_);
   }
   const T *RMSFFNWeight() const { return rms_ffn_weight_; }
   const Tensor<T> RMSFFNWeight(const size_t layer) const {
     return Tensor<T>(rms_ffn_weight_ + layer * config.Dim(),
-                     {static_cast<size_t>(config.Dim())});
+                     {static_cast<size_t>(config.Dim())}, device_type_);
   }
 
   const T *WQ() const { return wq_; }
@@ -47,7 +48,8 @@ class TransformerWeights {
         wq_ + layer * config.Dim() * config.NumHeads() * config.HeadDim(),
         {static_cast<size_t>(config.HeadDim()),
          static_cast<size_t>(config.NumHeads()),
-         static_cast<size_t>(config.Dim())});
+         static_cast<size_t>(config.Dim())},
+        device_type_);
   }
   const T *WK() const { return wk_; }
   const Tensor<T> WK(const size_t layer) const {
@@ -55,7 +57,8 @@ class TransformerWeights {
         wk_ + layer * config.Dim() * config.NumKVHeads() * config.HeadDim(),
         {static_cast<size_t>(config.HeadDim()),
          static_cast<size_t>(config.NumKVHeads()),
-         static_cast<size_t>(config.Dim())});
+         static_cast<size_t>(config.Dim())},
+        device_type_);
   }
 
   const T *WV() const { return wv_; }
@@ -64,7 +67,8 @@ class TransformerWeights {
         wv_ + layer * config.Dim() * config.NumKVHeads() * config.HeadDim(),
         {static_cast<size_t>(config.HeadDim()),
          static_cast<size_t>(config.NumKVHeads()),
-         static_cast<size_t>(config.Dim())});
+         static_cast<size_t>(config.Dim())},
+        device_type_);
   }
 
   const T *WO() const { return wo_; }
@@ -73,33 +77,40 @@ class TransformerWeights {
         wo_ + layer * config.NumHeads() * config.HeadDim() * config.Dim(),
         {static_cast<size_t>(config.Dim()),
          static_cast<size_t>(config.HeadDim()),
-         static_cast<size_t>(config.NumHeads())});
+         static_cast<size_t>(config.NumHeads())},
+        device_type_);
   }
 
   const T *W1() const { return w1_; }
   const Tensor<T> W1(const size_t layer) const {
     return Tensor<T>(w1_ + layer * config.HiddenDim() * config.Dim(),
                      {static_cast<size_t>(config.Dim()),
-                      static_cast<size_t>(config.HiddenDim())});
+                      static_cast<size_t>(config.HiddenDim())},
+                     device_type_);
   }
   const T *W2() const { return w2_; }
   const Tensor<T> W2(const size_t layer) const {
     return Tensor<T>(w2_ + layer * config.Dim() * config.HiddenDim(),
                      {static_cast<size_t>(config.HiddenDim()),
-                      static_cast<size_t>(config.Dim())});
+                      static_cast<size_t>(config.Dim())},
+                     device_type_);
   }
   const T *W3() const { return w3_; }
   const Tensor<T> W3(const size_t layer) const {
     return Tensor<T>(w3_ + layer * config.HiddenDim() * config.Dim(),
                      {static_cast<size_t>(config.Dim()),
-                      static_cast<size_t>(config.HiddenDim())});
+                      static_cast<size_t>(config.HiddenDim())},
+                     device_type_);
   }
   const Tensor<T> RMSFinalWeight() const {
-    return Tensor<T>(rms_final_weight_, {static_cast<size_t>(config.Dim())});
+    return Tensor<T>(rms_final_weight_, {static_cast<size_t>(config.Dim())},
+                     device_type_);
   }
   const Tensor<T> WCLS() const {
-    return Tensor<T>(wcls_, {static_cast<size_t>(config.Dim()),
-                             static_cast<size_t>(config.VocabSize())});
+    return Tensor<T>(wcls_,
+                     {static_cast<size_t>(config.Dim()),
+                      static_cast<size_t>(config.VocabSize())},
+                     device_type_);
   }
 
  private:
@@ -183,7 +194,9 @@ class TransformerWeights {
   const T *rms_final_weight_;  ///< RMS final weight. Shape:
                                ///< [dim, vocab_size]
   const T *wcls_;              ///< Classification weight for the logit.
-                               ///< Shape: [dim, vocab_size]
+  ///< Shape: [dim, vocab_size]
+
+  const DeviceType device_type_;
 };
 
 }  // namespace llama

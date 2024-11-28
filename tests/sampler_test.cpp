@@ -42,7 +42,7 @@ class SamplerTest : public ::testing::Test {
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Sampler> sampler_;
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::OpSet::OpType::CPU);
+      llama::CreateOpSet(llama::DeviceType::CPU);
 
   reference::Transformer ref_transformer_;
   reference::Sampler ref_sampler_;
@@ -110,7 +110,8 @@ TEST_F(SamplerTest, SampleTest) {
     logits.push_back(dis(gen));
   }
 
-  llama::Tensor<float> logits_tensor(logits.data(), {kNumOfLogits});
+  llama::Tensor<float> logits_tensor(logits.data(), {kNumOfLogits},
+                                     op_set_->GetDeviceType());
   const int kNext = sampler_->Sample(logits_tensor);
 
   int ref_next = sample(&ref_sampler_, logits.data());

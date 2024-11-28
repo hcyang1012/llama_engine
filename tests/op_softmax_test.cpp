@@ -17,13 +17,14 @@ TEST(SoftMaxTest, BATCH_TEST) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<size_t> dis_dim(kMinDim, kMaxDim);
   std::uniform_int_distribution<size_t> dis_batch(kMinBatch, kMaxBatch);
+  const llama::DeviceType device_type = llama::DeviceType::CPU;
 
   for (size_t iter = 0; iter < kRepeat; ++iter) {
     // Select a random dimension
     const size_t dim = dis_dim(gen);
     const size_t batch = dis_batch(gen);
-    llama::Tensor<float> input({batch, dim});
-    llama::Tensor<float> output({batch, dim});
+    llama::Tensor<float> input({batch, dim}, device_type);
+    llama::Tensor<float> output({batch, dim}, device_type);
 
     std::vector<float> reference_inout(batch * dim);
 
@@ -32,7 +33,7 @@ TEST(SoftMaxTest, BATCH_TEST) {
       input[i] = static_cast<float>(i);
     }
 
-    auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+    auto op_set = llama::CreateOpSet(llama::DeviceType::CPU);
 
     op_set->SoftMax<float>(input, output);
 

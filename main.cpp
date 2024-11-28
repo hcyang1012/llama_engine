@@ -110,7 +110,8 @@ int main(int argc, char *argv[]) {
   const llama::Transformer<float>::RunConfig run_config = {temperature, topp,
                                                            rng_seed};
 
-  auto op_set = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+  const llama::DeviceType device_type = llama::DeviceType::CPU;
+  auto op_set = llama::CreateOpSet(device_type);
   // build the Transformer via the model .bin file
   llama::Transformer<float> transformer(checkpoint_path, run_config, *op_set);
 

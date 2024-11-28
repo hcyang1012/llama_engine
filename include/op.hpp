@@ -15,6 +15,8 @@
 
 // Project Headers
 
+#include <dtypes.h>
+
 #include <opset.hpp>
 #include <opset_cpu.hpp>
 #include <tensor.hpp>
@@ -22,9 +24,9 @@
 #include <glog/logging.h>
 namespace llama {
 
-std::unique_ptr<OpSet> CreateOpSet(OpSet::OpType type) {
+std::unique_ptr<OpSet> CreateOpSet(const DeviceType type) {
   switch (type) {
-    case OpSet::OpType::CPU:
+    case DeviceType::CPU:
       return std::make_unique<OpSetCpu>();
     default:
       LOG(FATAL) << "Unsupported OpType";

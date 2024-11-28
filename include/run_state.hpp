@@ -22,27 +22,35 @@ namespace llama {
 template <typename T>
 class RunState {
  public:
-  RunState(const Config& config) : config_(config) {
+  RunState(const Config& config, const DeviceType device_type)
+      : config_(config), device_type_(device_type) {
     size_t kKVDims = (config.Dim() * config.NumKVHeads()) / config.NumHeads();
-    x = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
-    xb = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
-    xb2 = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+    x = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())},
+                                    device_type_);
+    xb = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())},
+                                     device_type_);
+    xb2 = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())},
+                                      device_type_);
     hb = std::make_unique<Tensor<T>>(
-        Shape{static_cast<size_t>(config.HiddenDim())});
+        Shape{static_cast<size_t>(config.HiddenDim())}, device_type_);
     hb2 = std::make_unique<Tensor<T>>(
-        Shape{static_cast<size_t>(config.HiddenDim())});
-    q = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())});
+        Shape{static_cast<size_t>(config.HiddenDim())}, device_type_);
+    q = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())},
+                                    device_type_);
     key_cache = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.NumLayers()),
-              static_cast<size_t>(config.SeqLen()), kKVDims});
+              static_cast<size_t>(config.SeqLen()), kKVDims},
+        device_type_);
     value_cache = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.NumLayers()),
-              static_cast<size_t>(config.SeqLen()), kKVDims});
+              static_cast<size_t>(config.SeqLen()), kKVDims},
+        device_type_);
     att = std::make_unique<Tensor<T>>(
         Shape{static_cast<size_t>(config.NumHeads()),
-              static_cast<size_t>(config.SeqLen())});
+              static_cast<size_t>(config.SeqLen())},
+        device_type_);
     logits = std::make_unique<Tensor<T>>(
-        Shape{static_cast<size_t>(config.VocabSize())});
+        Shape{static_cast<size_t>(config.VocabSize())}, device_type_);
 
     if (!x || !xb || !xb2 || !hb || !hb2 || !q || !key_cache || !value_cache ||
         !att || !logits) {
@@ -57,7 +65,7 @@ class RunState {
         << "Head index should be less than the number of heads";
 
     return Tensor<T>(xb->GetData() + head_idx * config_.HeadDim(),
-                     {static_cast<size_t>(config_.HeadDim())});
+                     {static_cast<size_t>(config_.HeadDim())}, device_type_);
   }
   Tensor<T>& XB2() { return *xb2; }
   Tensor<T>& HB() { return *hb; }
@@ -68,7 +76,7 @@ class RunState {
         << "Head index should be less than the number of heads";
 
     return Tensor<T>(Q().GetData() + head_idx * config_.HeadDim(),
-                     {static_cast<size_t>(config_.HeadDim())});
+                     {static_cast<size_t>(config_.HeadDim())}, device_type_);
   }
 
   Tensor<T> K() {
@@ -76,7 +84,8 @@ class RunState {
                      {static_cast<size_t>(config_.HeadDim()),
                       static_cast<size_t>(config_.NumKVHeads()),
                       static_cast<size_t>(config_.SeqLen()),
-                      static_cast<size_t>(config_.NumLayers())});
+                      static_cast<size_t>(config_.NumLayers())},
+                     device_type_);
   }
   Tensor<T> K(const size_t layer) {
     return Tensor<T>(key_cache->GetData() +
@@ -85,7 +94,8 @@ class RunState {
                                    static_cast<size_t>(config_.SeqLen()))),
                      {static_cast<size_t>(config_.HeadDim()),
                       static_cast<size_t>(config_.NumKVHeads()),
-                      static_cast<size_t>(config_.SeqLen())});
+                      static_cast<size_t>(config_.SeqLen())},
+                     device_type_);
   }
   Tensor<T> K(const size_t layer, const size_t pos) {
     return Tensor<T>(key_cache->GetData() +
@@ -95,7 +105,8 @@ class RunState {
                          (pos * (static_cast<size_t>(config_.HeadDim()) *
                                  static_cast<size_t>(config_.NumKVHeads()))),
                      {static_cast<size_t>(config_.HeadDim()),
-                      static_cast<size_t>(config_.NumKVHeads())});
+                      static_cast<size_t>(config_.NumKVHeads())},
+                     device_type_);
   }
 
   Tensor<T> K(const size_t layer, const size_t pos, const size_t head_idx) {
@@ -125,7 +136,8 @@ class RunState {
                                    static_cast<size_t>(config_.SeqLen()))),
                      {static_cast<size_t>(config_.HeadDim()),
                       static_cast<size_t>(config_.NumKVHeads()),
-                      static_cast<size_t>(config_.SeqLen())});
+                      static_cast<size_t>(config_.SeqLen())},
+                     device_type_);
   }
   Tensor<T> V(const size_t layer, const size_t pos) {
     return Tensor<T>(value_cache->GetData() +
@@ -135,7 +147,8 @@ class RunState {
                          (pos * (static_cast<size_t>(config_.HeadDim()) *
                                  static_cast<size_t>(config_.NumKVHeads()))),
                      {static_cast<size_t>(config_.HeadDim()),
-                      static_cast<size_t>(config_.NumKVHeads())});
+                      static_cast<size_t>(config_.NumKVHeads())},
+                     device_type_);
   }
 
   Tensor<T> V(const size_t layer, const size_t pos, const size_t head_idx) {
@@ -148,7 +161,8 @@ class RunState {
                          (head_idx * (static_cast<size_t>(config_.HeadDim()))),
                      {
                          static_cast<size_t>(config_.HeadDim()),
-                     });
+                     },
+                     device_type_);
   }
 
   Tensor<T>& Att() { return *att; }
@@ -162,6 +176,7 @@ class RunState {
 
  private:
   const Config& config_;
+  const DeviceType device_type_;
   std::unique_ptr<Tensor<T>> x;   ///< activation at current time stamp (dim,)
   std::unique_ptr<Tensor<T>> xb;  ///< same, but inside a residual branch (dim,)
   std::unique_ptr<Tensor<T>>

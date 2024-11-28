@@ -20,8 +20,10 @@ class RmsNormTest : public ::testing::Test {
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
     const size_t kSize = 4;
-    x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}));
-    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}));
+    x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
+                                                op_set_->GetDeviceType());
+    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
+                                                     op_set_->GetDeviceType());
 
     for (size_t i = 0; i < kSize; i++) {
       (*x_)[i] = dis(gen);
@@ -48,15 +50,15 @@ class RmsNormTest : public ::testing::Test {
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::OpSet::OpType::CPU);
+      llama::CreateOpSet(llama::DeviceType::CPU);
 };
 
 TEST_F(RmsNormTest, RmsNormTest) {
   const size_t kSize = 4;
   std::vector<float> expected_o(kSize);
-  llama::Tensor<float> actual(x_->GetShape());
+  llama::Tensor<float> actual(x_->GetShape(), op_set_->GetDeviceType());
 
-  auto op_set_ = llama::CreateOpSet(llama::OpSet::OpType::CPU);
+  auto op_set_ = llama::CreateOpSet(llama::DeviceType::CPU);
   op_set_->RmsNorm<float>(*x_, *weight_, actual);
   reference::rmsnorm(expected_o.data(), x_->GetData(), weight_->GetData(),
                      kSize);

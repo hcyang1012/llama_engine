@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <vector>
 // Project Headers
+#include <malloc/malloc.hpp>
 
 // Third-party Headers
 #include <glog/logging.h>
@@ -82,23 +83,30 @@ class Shape {
 template <typename T>
 class Tensor {
  public:
-  /// @brief Constructor
-  /// @param shape Shape of the tensor
-  explicit Tensor(const Shape &shape)
-      : data(new T[shape.GetSize()]),
-        kDataBytes(sizeof(T) * shape.GetSize()),
-        kIsOwner(true),
-        shape(shape) {}
-  explicit Tensor(const T *data, const Shape &shape)
+  explicit Tensor(const T *data, const Shape &shape,
+                  const DeviceType &device_type)
       : data(const_cast<T *>(data)),
         kDataBytes(sizeof(T) * shape.GetSize()),
         kIsOwner(false),
-        shape(shape) {}
+        shape(shape),
+        device_type_(device_type),
+        allocator(GetMemoryAllocator(device_type)) {}
+
+  explicit Tensor(const Shape &shape, const DeviceType &type)
+      : kDataBytes(sizeof(T) * shape.GetSize()),
+        kIsOwner(true),
+        shape(shape),
+        device_type_(type),
+        allocator(GetMemoryAllocator(type)),
+        data(reinterpret_cast<T *>(allocator->Allocate(kDataBytes))) {}
+
   Tensor(const Tensor<T> &other)
-      : data(other.data),
-        kDataBytes(other.GetDataBytesSize()),
+      : kDataBytes(other.GetDataBytesSize()),
         kIsOwner(false),
-        shape(other.GetShape()) {}
+        shape(other.GetShape()),
+        device_type_(other.device_type_),
+        allocator(GetMemoryAllocator(other.device_type_)),
+        data(const_cast<T *>(other.GetData())) {}
 
   std::string ToString() const {
     std::stringstream ss;
@@ -111,7 +119,7 @@ class Tensor {
   /// @brief Destructor
   ~Tensor() {
     if (kIsOwner) {
-      delete[] data;
+      allocator->Free(data);
     }
   }
 
@@ -170,7 +178,7 @@ class Tensor {
     if (shape.GetSize() != kDataBytes / sizeof(T)) {
       throw std::invalid_argument("Size of the shape does not match the data");
     }
-    return Tensor<T>(data, shape);
+    return Tensor<T>(data, shape, device_type_);
   }
 
   const T *GetData() const { return data; }
@@ -184,25 +192,29 @@ class Tensor {
     if (this == &other) {
       return *this;
     }
-    if (kDataBytes != other.GetDataBytesSize()) {
-      throw std::invalid_argument("Size of the shape does not match the data");
+
+    if (kIsOwner) {
+      allocator->Free(data);
     }
-    delete[] data;
-    data = new T[other.GetShape().GetSize()];
-    std::copy(other.GetData(), other.GetData() + other.GetShape().GetSize(),
-              data);
-    kDataBytes = other.GetDataBytesSize();
-    shape = other.GetShape();
-    kIsOwner = true;
+
+    kIsOwner = false;
+    allocator = other.allocator;
+    kDataBytes = other.kDataBytes;
+    shape = other.shape;
+    device_type_ = other.device_type_;
+    data = const_cast<T *>(other.data);
 
     return *this;
   }
 
  private:
-  T *data;
   size_t kDataBytes;
   bool kIsOwner;
   Shape shape;
+  const DeviceType device_type_;
+  std::shared_ptr<MemoryAllocator> allocator;
+
+  T *data;
 };
 
 std::ostream &operator<<(std::ostream &os, const llama::Shape &shape) {

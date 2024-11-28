@@ -19,8 +19,10 @@ class MatMulTest : public ::testing::Test {
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
-    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d, n}));
-    input_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d}));
+    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d, n}),
+                                                     op_set_->GetDeviceType());
+    input_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d}),
+                                                    op_set_->GetDeviceType());
 
     for (size_t i = 0; i < n; i++) {
       for (size_t j = 0; j < d; j++) {
@@ -64,12 +66,12 @@ class MatMulTest : public ::testing::Test {
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
 
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::OpSet::OpType::CPU);
+      llama::CreateOpSet(llama::DeviceType::CPU);
 };
 
 TEST_F(MatMulTest, MatMulTest) {
   std::vector<float> expected_o(n);
-  llama::Tensor<float> actual({n});
+  llama::Tensor<float> actual({n}, op_set_->GetDeviceType());
   op_set_->MatMul<float>(*weight_, *input_, actual);
   reference::matmul(expected_o.data(), input_->GetData(), weight_->GetData(), d,
                     n);
