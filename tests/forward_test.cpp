@@ -37,19 +37,20 @@ TEST_F(ForwardTest, Test) {
   // Reference Forward Stage
   float *ref_logits = nullptr;
   {
-    reference::Transformer ref_transformer;
-    reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
+    reference_llama2::Transformer ref_transformer;
+    reference_llama2::build_transformer(&ref_transformer,
+                                        kChkPointPath.c_str());
 
-    reference::Tokenizer ref_tokenizer;
-    reference::build_tokenizer(&ref_tokenizer, kTokenizerBinPath.c_str(),
-                               ref_transformer.config.vocab_size);
+    reference_llama2::Tokenizer ref_tokenizer;
+    reference_llama2::build_tokenizer(&ref_tokenizer, kTokenizerBinPath.c_str(),
+                                      ref_transformer.config.vocab_size);
 
     // encode the (string) prompt into tokens sequence
     int num_prompt_tokens = 0;
     int *prompt_tokens = (int *)malloc((strlen(kPrompt.c_str()) + 3) *
                                        sizeof(int));  // +3 for '\0', ?BOS, ?EOS
-    reference::encode(&ref_tokenizer, kPrompt.c_str(), 1, 0, prompt_tokens,
-                      &num_prompt_tokens);
+    reference_llama2::encode(&ref_tokenizer, kPrompt.c_str(), 1, 0,
+                             prompt_tokens, &num_prompt_tokens);
     if (num_prompt_tokens < 1) {
       fprintf(stderr, "something is wrong, expected at least 1 prompt token\n");
       exit(EXIT_FAILURE);
@@ -62,7 +63,7 @@ TEST_F(ForwardTest, Test) {
     int token =
         prompt_tokens[0];  // kick off with the first token in the prompt
     int pos = 0;           // position in the sequence
-    ref_logits = reference::forward(&ref_transformer, token, pos);
+    ref_logits = reference_llama2::forward(&ref_transformer, token, pos);
   }
 
   // Forward Stage

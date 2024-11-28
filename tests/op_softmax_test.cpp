@@ -38,7 +38,7 @@ TEST(SoftMaxTest, BATCH_TEST) {
     op_set->SoftMax<float>(input, output);
 
     for (size_t b = 0; b < batch; b++) {
-      reference::softmax(reference_inout.data() + b * dim, dim);
+      reference_llama2::softmax(reference_inout.data() + b * dim, dim);
       for (size_t i = 0; i < dim; i++) {
         EXPECT_NEAR(output[b * dim + i], reference_inout[b * dim + i], 1e-5);
       }

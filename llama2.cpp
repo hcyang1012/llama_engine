@@ -126,20 +126,22 @@ int main(int argc, char *argv[]) {
 
   if (mode == "generate") {
     {
-      reference::Transformer ref_transformer;
-      reference::build_transformer(&ref_transformer, checkpoint_path.c_str());
+      reference_llama2::Transformer ref_transformer;
+      reference_llama2::build_transformer(&ref_transformer,
+                                          checkpoint_path.c_str());
 
-      reference::Tokenizer ref_tokenizer;
-      reference::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
-                                 ref_transformer.config.vocab_size);
+      reference_llama2::Tokenizer ref_tokenizer;
+      reference_llama2::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
+                                        ref_transformer.config.vocab_size);
 
-      reference::Sampler sampler;
-      reference::build_sampler(&sampler, ref_transformer.config.vocab_size,
-                               temperature, topp, rng_seed);
+      reference_llama2::Sampler sampler;
+      reference_llama2::build_sampler(&sampler,
+                                      ref_transformer.config.vocab_size,
+                                      temperature, topp, rng_seed);
 
       std::cout << "Reference Generation:" << std::endl;
-      reference::generate(&ref_transformer, &ref_tokenizer, &sampler, prompt,
-                          steps);
+      reference_llama2::generate(&ref_transformer, &ref_tokenizer, &sampler,
+                                 prompt, steps);
     }
     std::cout << std::endl;
     {

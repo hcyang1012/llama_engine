@@ -44,8 +44,8 @@ class SamplerTest : public ::testing::Test {
   std::unique_ptr<llama::OpSet> op_set_ =
       llama::CreateOpSet(llama::DeviceType::CPU);
 
-  reference::Transformer ref_transformer_;
-  reference::Sampler ref_sampler_;
+  reference_llama2::Transformer ref_transformer_;
+  reference_llama2::Sampler ref_sampler_;
 };
 
 TEST_F(SamplerTest, VocabSizeTest) {
@@ -83,15 +83,15 @@ TEST_F(SamplerTest, ProbIdxSortTest) {
 
   std::sort(prob_indices.begin(), prob_indices.end());
 
-  std::vector<reference::ProbIndex> ref_prob_indices;
+  std::vector<reference_llama2::ProbIndex> ref_prob_indices;
   for (int i = 0; i < 10; i++) {
-    reference::ProbIndex ref_prob_idx;
+    reference_llama2::ProbIndex ref_prob_idx;
     ref_prob_idx.prob = input[i];
     ref_prob_idx.index = i;
     ref_prob_indices.push_back(ref_prob_idx);
   }
   qsort(ref_prob_indices.data(), ref_prob_indices.size(),
-        sizeof(reference::ProbIndex), reference::compare);
+        sizeof(reference_llama2::ProbIndex), reference_llama2::compare);
 
   for (int i = 0; i < 10; i++) {
     EXPECT_EQ(prob_indices[i].prob, ref_prob_indices[i].prob);

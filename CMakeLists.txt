@@ -45,6 +45,10 @@ add_executable(llama2_reference ${CMAKE_SOURCE_DIR}/references/reference_llama2.
 target_include_directories(llama2_reference PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(llama2_reference PUBLIC -DINCLUDE_MAIN)
 
+add_executable(llama3_reference ${CMAKE_SOURCE_DIR}/references/reference_llama3.cpp)
+target_include_directories(llama3_reference PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_definitions(llama3_reference PUBLIC -DINCLUDE_MAIN)
+
 
 
 enable_testing()

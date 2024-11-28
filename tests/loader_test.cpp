@@ -12,7 +12,8 @@ class LoaderTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // code here will execute just before the test ensues
-    reference::build_transformer(&ref_transformer_, kCheckPointPath.c_str());
+    reference_llama2::build_transformer(&ref_transformer_,
+                                        kCheckPointPath.c_str());
     transformer_ =
         std::make_unique<llama::Transformer<float>>(kCheckPointPath, *op_set_);
   }
@@ -22,7 +23,7 @@ class LoaderTest : public ::testing::Test {
     // ok to through exceptions from here if need be
   }
 
-  reference::Transformer ref_transformer_;
+  reference_llama2::Transformer ref_transformer_;
   std::unique_ptr<llama::Transformer<float>> transformer_;
 
   const llama::DeviceType kDeviceType = llama::DeviceType::CPU;
