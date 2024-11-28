@@ -19,11 +19,11 @@ set(TEST_INCLUDE_PATH
 set(TEST_DEP_LIBS
     GTest::gtest_main
     glog
-    llama2_cpp_dummy_lib
 )
 
 function (add_test_executable target_name)
     add_executable(${target_name} ${ARGN})
+    target_compile_definitions(${target_name} PUBLIC -DUSE_LLAMA2)
     target_include_directories(${target_name} PUBLIC ${TEST_INCLUDE_PATH})
     target_link_libraries(${target_name} PRIVATE ${TEST_DEP_LIBS})
     gtest_discover_tests(${target_name})
