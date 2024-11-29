@@ -24,10 +24,19 @@ namespace llama {
 template <typename T>
 class TransformerWeights {
  public:
-  TransformerWeights(const Config &config, const T *p_weights,
+  TransformerWeights(const std::string &checkpoint_path, const Config &config,
                      const DeviceType device_type)
       : config(config), device_type_(device_type) {
-    load_weights(p_weights, config.VocabSize() > 0);
+    load_weights(checkpoint_path);
+  }
+
+  ~TransformerWeights() {
+    if (mapped_file_ != nullptr) {
+      munmap(mapped_file_, file_size_);
+    }
+    if (fd_ != -1) {
+      close(fd_);
+    }
   }
 
   const T *TokenEmbeddingTable() const { return token_embedding_table_; }
@@ -176,6 +185,32 @@ class TransformerWeights {
 
     wcls_ = shared_weights ? token_embedding_table_ : p_weights;
   }
+
+  void load_weights(const std::string &ckpt_file) {
+    // Load the configuration file
+    std::ifstream if_chkpt_file(ckpt_file, std::ios::binary);
+    // Load the weights
+    if_chkpt_file.seekg(0, std::ios::end);
+    file_size_ = if_chkpt_file.tellg();
+    if_chkpt_file.close();
+
+    fd_ = open(ckpt_file.c_str(), O_RDONLY);
+    if (fd_ == -1) {
+      throw std::runtime_error("Failed to open the checkpoint file.");
+    }
+
+    mapped_file_ = static_cast<T *>(
+        mmap(nullptr, file_size_, PROT_READ, MAP_PRIVATE, fd_, 0));
+
+    if (mapped_file_ == MAP_FAILED) {
+      throw std::runtime_error("Failed to map the checkpoint file.");
+    }
+
+    T *weights_ptr = mapped_file_ + Config::Size() / sizeof(T);
+
+    load_weights(weights_ptr, config.VocabSize() > 0);
+  }
+
   const Config &config;
   const T *token_embedding_table_;  ///< Token embedding table. Shape:
                                     ///< [vocab_size, dim]
@@ -197,6 +232,10 @@ class TransformerWeights {
   ///< Shape: [dim, vocab_size]
 
   const DeviceType device_type_;
+
+  int fd_;             // file descriptor for the memory mapped file
+  ssize_t file_size_;  // size of the memory mapped file
+  T *mapped_file_;     // pointer to the memory mapped file
 };
 
 }  // namespace llama

@@ -52,11 +52,11 @@ class OpSetCpu : public OpSet {
   }
 
   void RoPEImpl(const size_t position, const Config& config, void* Q, void* K,
-                const std::type_info& type, const float freq) override {
+                const std::type_info& type) override {
     if (type == typeid(float)) {
       CpuOps::RoPE<float>::Compute(position, config,
                                    *static_cast<Tensor<float>*>(Q),
-                                   *static_cast<Tensor<float>*>(K), freq);
+                                   *static_cast<Tensor<float>*>(K));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }

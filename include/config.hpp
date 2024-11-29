@@ -24,8 +24,10 @@ namespace llama {
  */
 class Config {
  public:
-  Config(std::ifstream &config_file);  ///< Constructor
-
+  Config(const std::string &config_file) {
+    std::ifstream if_config_file(config_file, std::ios::binary);
+    load_config(if_config_file);
+  }
   llama_uint32_t Dim() const;        ///< Get the dimension of the Transformer
   llama_uint32_t HiddenDim() const;  ///< Get the dimension of the FeedForward
                                      ///< hidden layer (FFN) in the Transformer
@@ -44,10 +46,11 @@ class Config {
   llama_uint32_t VocabSize() const;  ///< Get the size of the vocabulary
   llama_uint32_t SeqLen() const;     ///< Get the maximum sequence length
 
+  virtual llama_float Freq() const = 0;
+
   static size_t Size();  ///< Get the size of the configuration in bytes
 
  private:
-  void load_config(std::ifstream &config_file);
   llama_uint32_t kDim;         ///< Transformer dimension
   llama_uint32_t kHiddenDim;   ///< Dimension of the FeedForward hidden layer
                                ///< (FFN) in the Transformer
@@ -64,9 +67,9 @@ class Config {
       kKVMul;  /// Number of heads for key and value per head for query
   llama_uint32_t kVocabSize;  ///< Size of the vocabulary
   llama_uint32_t kSeqLen;     ///< Maximum sequence length
-};
 
-Config::Config(std::ifstream &config_file) { load_config(config_file); }
+  void load_config(std::ifstream &config_file);
+};
 
 llama_uint32_t Config::Dim() const { return kDim; }
 
@@ -108,5 +111,11 @@ size_t Config::Size() {
          sizeof(kNumHeads) + sizeof(kNumKVHeads) + sizeof(kVocabSize) +
          sizeof(kSeqLen);
 }
+
+class ConfigLlama2 : public Config {
+ public:
+  ConfigLlama2(const std::string &config_file) : Config(config_file) {}
+  llama_float Freq() const override { return 10000.0f; }
+};
 
 }  // namespace llama

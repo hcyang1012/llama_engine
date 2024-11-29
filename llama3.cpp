@@ -12,8 +12,8 @@
 #include <llama.hpp>
 #include <op.hpp>
 #include <transformer.hpp>
-#if defined(USE_LLAMA2)
-#include "references/reference_llama2.cpp"
+#if defined(USE_LLAMA3)
+#include "references/reference_llama3.cpp"
 #endif
 // Third-party Headers
 
@@ -108,9 +108,11 @@ int main(int argc, char *argv[]) {
   }
 
   const auto kDeviceType = llama::DeviceType::CPU;
-  const llama::LlamaConfig llama2_config = {.checkpoint_path = checkpoint_path,
-                                            .tokenizer_path = tokenizer_path,
-                                            .device_type = kDeviceType};
+  const llama::LlamaConfig llama2_config = {
+      .checkpoint_path = checkpoint_path,
+      .tokenizer_path = tokenizer_path,
+      .device_type = kDeviceType,
+  };
   llama::Llama2<float> llama2(llama2_config);
 
   if (steps == 0) {
@@ -121,29 +123,28 @@ int main(int argc, char *argv[]) {
 
   if (mode == "generate") {
     {
-      reference_llama2::Transformer ref_transformer;
-      reference_llama2::build_transformer(&ref_transformer,
+      reference_llama3::Transformer ref_transformer;
+      reference_llama3::build_transformer(&ref_transformer,
                                           checkpoint_path.c_str());
 
-      reference_llama2::Tokenizer ref_tokenizer;
-      reference_llama2::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
+      reference_llama3::Tokenizer ref_tokenizer;
+      reference_llama3::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
                                         ref_transformer.config.vocab_size);
 
-      reference_llama2::Sampler sampler;
-      reference_llama2::build_sampler(&sampler,
+      reference_llama3::Sampler sampler;
+      reference_llama3::build_sampler(&sampler,
                                       ref_transformer.config.vocab_size,
                                       temperature, topp, rng_seed);
 
       std::cout << "Reference Generation:" << std::endl;
-      reference_llama2::generate(&ref_transformer, &ref_tokenizer, &sampler,
+      reference_llama3::generate(&ref_transformer, &ref_tokenizer, &sampler,
                                  prompt, steps);
     }
     std::cout << std::endl;
     {
       std::cout << "My Generation:" << std::endl;
-      const llama::RunConfig run_config = {
-          .temperature = temperature, .topp = topp, .rng_seed = rng_seed};
-      llama2.Generate(prompt, steps, run_config);
+
+      llama2.Generate(prompt, steps);
     }
 
   } else if (mode == "chat") {

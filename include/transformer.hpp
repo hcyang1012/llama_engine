@@ -23,6 +23,7 @@
 #include <decoder.hpp>
 #include <encoder.hpp>
 #include <op.hpp>
+#include <weights.hpp>
 // #include <op.hpp>
 #include <run_state.hpp>
 #include <sampler.hpp>
@@ -34,39 +35,36 @@
 
 namespace llama {
 
+struct RunConfig {
+  float temperature = 1.0f;
+  float topp = 0.9f;
+  unsigned long long rng_seed = 0;
+};
 template <typename T>
 class Transformer {
  public:
-  struct RunConfig {
-    float temperature = 1.0f;
-    float topp = 0.9f;
-    unsigned long long rng_seed = 0;
-  };
-
-  Transformer(const std::string &ckpt_file, const RunConfig &run_config,
+  Transformer(const Config &config, const TransformerWeights<T> &weights,
               OpSet &op_set, const SpecialTokens &special_tokens)
-      : run_config_(run_config),
+      : config_(config),
+        weights_(weights),
         op_set_(op_set),
-        special_tokens_(special_tokens) {
-    load_checkpoint(ckpt_file);
-    sampler_ = std::make_unique<Sampler>(
-        config_->VocabSize(), run_config_.temperature, run_config_.topp,
-        run_config_.rng_seed, op_set_);
-  }
+        special_tokens_(special_tokens),
+        run_state_(
+            std::make_unique<RunState<T>>(config, op_set.GetDeviceType())) {}
 
-  Transformer(const std::string &ckpt_file, OpSet &op_set,
-              const SpecialTokens &special_tokens)
-      : Transformer(ckpt_file, run_config_, op_set, special_tokens) {}
   ~Transformer() {}
 
-  const auto &GetConfig() const { return *config_; }
-  const auto &GetWeights() const { return *weights_; }
-  const auto &GetRunState() const { return *run_state_; }
-
+  const auto &GetConfig() const { return config_; }
+  const auto &GetWeights() const { return weights_; }
+  const auto &GetRunState() const { return run_state_; }
   auto &GetRunState() { return *run_state_; }
 
   std::string Generate(const Tokenizer<T> &tokenizer, const std::string &prompt,
-                       const size_t steps, const bool print = true) {
+                       const size_t steps, const RunConfig &run_config,
+                       const bool print = true) {
+    auto sampler = std::make_unique<Sampler>(
+        config_.VocabSize(), run_config.temperature, run_config.topp,
+        run_config.rng_seed, op_set_);
     std::stringstream ss;
     const auto encoder =
         Encoder<T>(tokenizer, prompt, true, false, special_tokens_);
@@ -84,7 +82,7 @@ class Transformer {
         next = prompt_tokens[pos + 1];
       } else {
         // Generation stage
-        next = sampler_->Sample(logits);
+        next = sampler->Sample(logits);
       }
       pos++;
 
@@ -95,7 +93,8 @@ class Transformer {
       auto piece = Decoder<T>::Decode(tokenizer, token, next, special_tokens_);
       safe_print(piece, ss, print);
       token = next;
-      // ignore the first token for time calculation to ignore the warm-up time
+      // ignore the first token for time calculation to ignore the warm-up
+      // time
       if (is_first) {
         start_time = std::chrono::high_resolution_clock::now();
         is_first = false;
@@ -115,13 +114,13 @@ class Transformer {
   }
 
   const Tensor<T> Forward(const size_t token, const size_t pos) {
-    const size_t kInputEmbedDim = config_->Dim();
-    const size_t kPerHeadDim = kInputEmbedDim / config_->NumHeads();
+    const size_t kInputEmbedDim = config_.Dim();
+    const size_t kPerHeadDim = kInputEmbedDim / config_.NumHeads();
     const size_t kKVDim =
-        (kInputEmbedDim * config_->NumKVHeads()) / config_->NumHeads();
-    const size_t kKVMul = config_->NumHeads() / config_->NumKVHeads();
+        (kInputEmbedDim * config_.NumKVHeads()) / config_.NumHeads();
+    const size_t kKVMul = config_.NumHeads() / config_.NumKVHeads();
 
-    auto embed = weights_->TokenEmbeddingTable() + token * kInputEmbedDim;
+    auto embed = weights_.TokenEmbeddingTable() + token * kInputEmbedDim;
     std::copy(embed, embed + kInputEmbedDim, run_state_->X().GetData());
 
     auto Q = run_state_->Q();
@@ -131,10 +130,10 @@ class Transformer {
     auto HB = run_state_->HB();
     auto HB2 = run_state_->HB2();
 
-    for (size_t layer = 0; layer < config_->NumLayers(); ++layer) {
+    for (size_t layer = 0; layer < config_.NumLayers(); ++layer) {
       // RMSNorm
       {
-        const auto kRmsAttWeight = weights_->RMSAttnWeight(layer);
+        const auto kRmsAttWeight = weights_.RMSAttnWeight(layer);
         op_set_.RmsNorm<T>(X, kRmsAttWeight, XB);
         // RmsNorm<T>::Compute(X, kRmsAttWeight, XB);
       }
@@ -145,22 +144,22 @@ class Transformer {
       // Calculate Q, K, V
       {
         op_set_.MatMul<T>(
-            weights_->WQ(layer).ReShape({kInputEmbedDim, kInputEmbedDim}),
+            weights_.WQ(layer).ReShape({kInputEmbedDim, kInputEmbedDim}),
             run_state_->XB(), Q);
 
-        op_set_.MatMul<T>(weights_->WK(layer).ReShape({kInputEmbedDim, kKVDim}),
+        op_set_.MatMul<T>(weights_.WK(layer).ReShape({kInputEmbedDim, kKVDim}),
                           run_state_->XB(), K);
 
-        op_set_.MatMul<T>(weights_->WV(layer).ReShape({kInputEmbedDim, kKVDim}),
+        op_set_.MatMul<T>(weights_.WV(layer).ReShape({kInputEmbedDim, kKVDim}),
                           run_state_->XB(), V);
       }
 
       // RoPE
-      { op_set_.RoPE<T>(pos, *config_, Q, K); }
+      { op_set_.RoPE<T>(pos, config_, Q, K); }
 
       // Multi-Head Attention
-      const size_t kNumHeads = config_->NumHeads();
-      const size_t kKVMul = config_->KVMul();
+      const size_t kNumHeads = config_.NumHeads();
+      const size_t kKVMul = config_.KVMul();
       for (size_t head_idx = 0; head_idx < kNumHeads; ++head_idx) {
         const size_t kKVHeadIdx = head_idx / kKVMul;
         auto Q = run_state_->Q(head_idx);
@@ -168,14 +167,13 @@ class Transformer {
         auto V_layer = run_state_->V(layer);
 
         auto XB = run_state_->XB(head_idx);
-        op_set_.Attention<T>(Q, K_layer, V_layer, *config_, pos, kKVHeadIdx,
-                             XB);
+        op_set_.Attention<T>(Q, K_layer, V_layer, config_, pos, kKVHeadIdx, XB);
       }
 
       // Matmul
       {
         const auto WO =
-            weights_->WO(layer).ReShape({kInputEmbedDim, kInputEmbedDim});
+            weights_.WO(layer).ReShape({kInputEmbedDim, kInputEmbedDim});
 
         op_set_.MatMul<T>(WO, run_state_->XB(), XB2);
       }
@@ -185,15 +183,15 @@ class Transformer {
 
       // Feed Forward Network RMSNorm
       {
-        const auto WRMSFFN = weights_->RMSFFNWeight(layer);
+        const auto WRMSFFN = weights_.RMSFFNWeight(layer);
         op_set_.RmsNorm(X, WRMSFFN, XB);
       }
 
       // SWiGLU Feed Forward Network
       {
-        const auto W1 = weights_->W1(layer);
-        const auto W2 = weights_->W2(layer);
-        const auto W3 = weights_->W3(layer);
+        const auto W1 = weights_.W1(layer);
+        const auto W2 = weights_.W2(layer);
+        const auto W3 = weights_.W3(layer);
 
         op_set_.MatMul<T>(W1, XB, HB);
         op_set_.MatMul<T>(W3, XB, HB2);
@@ -208,55 +206,16 @@ class Transformer {
     }
 
     // Final RMSNorm
-    const auto kRmsFinalWeight = weights_->RMSFinalWeight();
+    const auto kRmsFinalWeight = weights_.RMSFinalWeight();
     { op_set_.RmsNorm<T>(X, kRmsFinalWeight, X); }
 
     // Logits
-    { op_set_.MatMul<T>(weights_->WCLS(), X, run_state_->Logits()); }
+    { op_set_.MatMul<T>(weights_.WCLS(), X, run_state_->Logits()); }
 
     return run_state_->Logits();
   }
 
  private:
-  void load_checkpoint(const std::string &ckpt_file) {
-    // Load the configuration file
-    std::ifstream if_chkpt_file(ckpt_file, std::ios::binary);
-    if (!if_chkpt_file.is_open()) {
-      throw std::runtime_error("Failed to open the checkpoint file.");
-    }
-
-    // Load the configuration
-    config_ = std::make_unique<Config>(if_chkpt_file);
-
-    // Load the weights
-    if_chkpt_file.seekg(0, std::ios::end);
-    file_size_ = if_chkpt_file.tellg();
-    if_chkpt_file.close();
-
-    fd_ = open(ckpt_file.c_str(), O_RDONLY);
-    if (fd_ == -1) {
-      throw std::runtime_error("Failed to open the checkpoint file.");
-    }
-
-    mapped_file_ = static_cast<T *>(
-        mmap(nullptr, file_size_, PROT_READ, MAP_PRIVATE, fd_, 0));
-
-    if (mapped_file_ == MAP_FAILED) {
-      throw std::runtime_error("Failed to map the checkpoint file.");
-    }
-
-    T *weights_ptr = mapped_file_ + Config::Size() / sizeof(T);
-
-    load_weights(weights_ptr);
-    run_state_ =
-        std::make_unique<RunState<T>>(*config_, op_set_.GetDeviceType());
-  }
-
-  void load_weights(T *weights_ptr) {
-    weights_ = std::make_unique<TransformerWeights<T>>(*config_, weights_ptr,
-                                                       op_set_.GetDeviceType());
-  }
-
   void safe_print(const std::string &str, std::ostream &os, const bool print) {
     if (str.size() > 0) {
       unsigned char byte = str[0];
@@ -269,20 +228,12 @@ class Transformer {
     }
   }
 
-  std::unique_ptr<Config> config_;  ///< Hyperparameters of the Transformer
-  std::unique_ptr<TransformerWeights<T>>
-      weights_;                             ///< Weights of the Transformer
-  std::unique_ptr<RunState<T>> run_state_;  ///< Run state of the Transformer
-  const RunConfig run_config_ = {1.0f, 0.9f, 0};  ///< Run configuration of
-                                                  ///< the Transformer
-  std::unique_ptr<Sampler> sampler_;  ///< Sampler for the Transformer
-
-  int fd_;             // file descriptor for the memory mapped file
-  ssize_t file_size_;  // size of the memory mapped file
-  T *mapped_file_;     // pointer to the memory mapped file
-
+  const Config &config_;  ///< Hyperparameters of the Transformer
+  const TransformerWeights<T> &weights_;  ///< Weights of the Transformer
   OpSet &op_set_;
   const SpecialTokens &special_tokens_;
+
+  std::unique_ptr<RunState<T>> run_state_;
 };
 
 }  // namespace llama

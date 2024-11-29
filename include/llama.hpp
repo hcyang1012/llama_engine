@@ -20,59 +20,74 @@
 // Third-party Headers
 
 namespace llama {
+
+struct LlamaConfig {
+  std::string checkpoint_path;
+  std::string tokenizer_path;
+  DeviceType device_type;
+};
+
 template <typename T>
 class LlamaModel {
  public:
-  struct LlamaConfig {
-    std::string checkpoint_path;
-    std::string tokenizer_path;
-    DeviceType device_type;
-    float temperature;
-    float topp;
-    llama_uint32_t steps;
-    unsigned long long rng_seed;
-  };
-  LlamaModel(const LlamaConfig& config)
-      : config_(config),
-        run_config_({config.temperature, config.topp, config.rng_seed}) {}
+  LlamaModel(const LlamaConfig& llama_config,
+             std::unique_ptr<Config> transformer_config,
+             std::unique_ptr<OpSet> op_set,
+             std::unique_ptr<SpecialTokens> special_tokens)
+      : transformer_config_(std::move(transformer_config)),
+        weights_(std::make_unique<TransformerWeights<T>>(
+            llama_config.checkpoint_path, *transformer_config_,
+            llama_config.device_type)),
+        op_set_(std::move(op_set)),
+        special_tokens_(std::move(special_tokens)),
+        transformer_(std::make_unique<Transformer<T>>(
+            *transformer_config_, *weights_, *op_set_, *special_tokens_)),
+        tokenizer_(std::make_unique<Tokenizer<T>>(
+            llama_config.tokenizer_path, transformer_config_->VocabSize())) {}
+
   ~LlamaModel() = default;
 
-  std::string Generate(const std::string& prompt, const size_t steps) {
+  std::string Generate(const std::string& prompt, const size_t steps,
+                       const RunConfig& run_config) {
     if (!transformer_ || !tokenizer_) {
-      model_init();
+      throw std::runtime_error("Model is not initialized.");
     }
-    return transformer_->Generate(*tokenizer_, prompt, steps);
+    return transformer_->Generate(*tokenizer_, prompt, steps, run_config);
   }
 
-  const auto& GetTransformer() const { return *transformer_; }
+  auto& GetTransformer() const { return *transformer_; }
+  const auto& GetTokenizer() const { return *tokenizer_; }
 
  protected:
-  virtual void model_init() = 0;
-  LlamaConfig config_;
-  Transformer<float>::RunConfig run_config_;
+  std::unique_ptr<Config> transformer_config_;
+  std::unique_ptr<TransformerWeights<T>> weights_;
+  std::unique_ptr<OpSet> op_set_;
+  std::unique_ptr<SpecialTokens> special_tokens_;
   std::unique_ptr<Transformer<T>> transformer_;
   std::unique_ptr<Tokenizer<T>> tokenizer_;
-  std::unique_ptr<SpecialTokens> special_tokens_;
-  std::unique_ptr<OpSet> op_set_;
+
+ private:
+  std::unique_ptr<Config> load_config(const std::string& ckpt_file) {
+    std::ifstream if_chkpt_file(ckpt_file, std::ios::binary);
+    if (!if_chkpt_file.is_open()) {
+      throw std::runtime_error("Failed to open the checkpoint file.");
+    }
+
+    return std::make_unique<Config>(if_chkpt_file);
+  }
 };
 
 template <typename T>
 class Llama2 : public LlamaModel<T> {
  public:
-  Llama2(const typename LlamaModel<T>::LlamaConfig& config)
-      : LlamaModel<T>(config) {}
+  Llama2(const LlamaConfig& llama_config)
+      : LlamaModel<T>(llama_config,
+                      std::move(std::make_unique<ConfigLlama2>(
+                          llama_config.checkpoint_path)),
+                      std::move(CreateOpSet(llama_config.device_type)),
+                      std::move(std::make_unique<SpecialTokensLlama2>())) {}
   ~Llama2() = default;
 
- private:
-  void model_init() override {
-    this->op_set_ = CreateOpSet(this->config_.device_type);
-    this->special_tokens_ = std::make_unique<SpecialTokensLlama2>();
-    this->transformer_ = std::make_unique<Transformer<T>>(
-        this->config_.checkpoint_path, this->run_config_, *(this->op_set_),
-        *(this->special_tokens_));
-    this->tokenizer_ = std::make_unique<Tokenizer<T>>(
-        this->config_.tokenizer_path,
-        this->transformer_->GetConfig().VocabSize());
-  }
+ protected:
 };
 }  // namespace llama

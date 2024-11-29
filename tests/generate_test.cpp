@@ -6,19 +6,14 @@
 #if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
 #endif
+#include <llama.hpp>
+
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
 class GenerateTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    llama::Transformer<float>::RunConfig run_config = {temperature_, topp_,
-                                                       rng_seed_};
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, run_config, *op_set_, *special_tokens_);
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
-  }
+  void SetUp() override {}
 
   void TearDown() override {
     // code here will be called just after the test completes
@@ -28,18 +23,16 @@ class GenerateTest : public ::testing::Test {
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
-  std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::DeviceType::CPU);
-  std::unique_ptr<llama::SpecialTokens> special_tokens_ =
-      std::make_unique<llama::SpecialTokensLlama2>();
-
-  // float temperature_ = 0.8f;
   float temperature_ = 0.0f;
   float topp_ = 0.9f;
   unsigned long long rng_seed_ = 1;
   const size_t kSteps = 256;
+
+  llama::LlamaConfig llama2_config = {.checkpoint_path = kChkPointPath,
+                                      .tokenizer_path = kTokenizerBinPath,
+                                      .device_type = llama::DeviceType::CPU};
+  std::unique_ptr<llama::LlamaModel<float>> llama2 =
+      std::make_unique<llama::Llama2<float>>(llama2_config);
 };
 
 TEST_F(GenerateTest, Test) {
@@ -65,6 +58,9 @@ TEST_F(GenerateTest, Test) {
   }
   {
     std::cout << "LLAMA2 Generation:" << std::endl;
-    transformer_->Generate(*tokenizer_, kPrompt, kSteps);
+    const llama::RunConfig run_config = {
+        .temperature = temperature_, .topp = topp_, .rng_seed = rng_seed_};
+
+    std::string result = llama2->Generate(kPrompt, kSteps, run_config);
   }
 }

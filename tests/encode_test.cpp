@@ -1,14 +1,10 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <llama.hpp>
 #include <string>
 
-#include "encoder.hpp"
-#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
-#endif
-#include "tokenizer.hpp"
-#include "transformer.hpp"
 
 class EncodeTest : public ::testing::Test {
  public:
@@ -20,11 +16,6 @@ class EncodeTest : public ::testing::Test {
     reference_llama2::build_tokenizer(&ref_tokenizer_,
                                       kTokenizerBinPath.c_str(),
                                       ref_transformer_.config.vocab_size);
-
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
   void TearDown() override {
@@ -35,8 +26,6 @@ class EncodeTest : public ::testing::Test {
   reference_llama2::Transformer ref_transformer_;
   reference_llama2::Tokenizer ref_tokenizer_;
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
   std::unique_ptr<llama::OpSet> op_set_ =
       llama::CreateOpSet(llama::DeviceType::CPU);
 
@@ -45,6 +34,11 @@ class EncodeTest : public ::testing::Test {
 };
 
 TEST_F(EncodeTest, SampleText) {
+  const llama::LlamaConfig llama_config = {kChkPointPath, kTokenizerBinPath,
+                                           llama::DeviceType::CPU};
+  llama::Llama2<float> llama2(llama_config);
+
+  const auto &tokenizer = llama2.GetTokenizer();
   const std::string kPrompt = "Who are you?";
 
   // encode the (string) prompt into tokens sequence
@@ -54,7 +48,7 @@ TEST_F(EncodeTest, SampleText) {
   reference_llama2::encode(&ref_tokenizer_, kPrompt.c_str(), 1, 0,
                            prompt_tokens, &num_prompt_tokens);
   EXPECT_GE(num_prompt_tokens, 1);
-  auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false,
+  auto encoder = llama::Encoder<float>(tokenizer, kPrompt, true, false,
                                        llama::SpecialTokensLlama2());
   auto result = encoder.PromptTokens();
   EXPECT_TRUE(std::equal(prompt_tokens, prompt_tokens + num_prompt_tokens,

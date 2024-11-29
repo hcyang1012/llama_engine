@@ -41,6 +41,12 @@ target_compile_definitions(llama2_cpp PUBLIC -DUSE_LLAMA2)
 target_include_directories(llama2_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(llama2_cpp glog::glog)
 
+# add_executable(llama3_cpp ${CMAKE_SOURCE_DIR}/llama3.cpp)
+# target_compile_definitions(llama3_cpp PUBLIC -DUSE_LLAMA3)
+# target_include_directories(llama3_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
+# target_link_libraries(llama3_cpp glog::glog)
+
+
 add_executable(llama2_reference ${CMAKE_SOURCE_DIR}/references/reference_llama2.cpp)
 target_include_directories(llama2_reference PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(llama2_reference PUBLIC -DINCLUDE_MAIN)

@@ -1,16 +1,10 @@
 #include <gtest/gtest.h>
 
 // For random number generation
+#include <llama.hpp>
 #include <op.hpp>
 #include <random>
-
-#include "encoder.hpp"
-#if defined(USE_LLAMA2)
-#include "references/reference_llama2.cpp"
-#endif
-#include "tokenizer.hpp"
-#include "transformer.hpp"
-#include "weights.hpp"
+#include <references/reference_llama2.cpp>
 class RmsNormTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -21,19 +15,14 @@ class RmsNormTest : public ::testing::Test {
 
     const size_t kSize = 4;
     x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
-                                                op_set_->GetDeviceType());
+                                                kLlamaConfig.device_type);
     weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
-                                                     op_set_->GetDeviceType());
+                                                     kLlamaConfig.device_type);
 
     for (size_t i = 0; i < kSize; i++) {
       (*x_)[i] = dis(gen);
       (*weight_)[i] = dis(gen);
     }
-
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
   void TearDown() override {
@@ -47,16 +36,21 @@ class RmsNormTest : public ::testing::Test {
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+  const llama::LlamaConfig kLlamaConfig = {
+      .checkpoint_path = kChkPointPath.c_str(),
+      .tokenizer_path = kTokenizerBinPath.c_str(),
+      .device_type = llama::DeviceType::CPU};
+  std::unique_ptr<llama::Llama2<float>> llama2_ =
+      std::make_unique<llama::Llama2<float>>(kLlamaConfig);
+
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::DeviceType::CPU);
+      llama::CreateOpSet(kLlamaConfig.device_type);
 };
 
 TEST_F(RmsNormTest, RmsNormTest) {
   const size_t kSize = 4;
   std::vector<float> expected_o(kSize);
-  llama::Tensor<float> actual(x_->GetShape(), op_set_->GetDeviceType());
+  llama::Tensor<float> actual(x_->GetShape(), kLlamaConfig.device_type);
 
   auto op_set_ = llama::CreateOpSet(llama::DeviceType::CPU);
   op_set_->RmsNorm<float>(*x_, *weight_, actual);
@@ -68,9 +62,11 @@ TEST_F(RmsNormTest, RmsNormTest) {
 }
 
 TEST_F(RmsNormTest, ForwardTest) {
-  const size_t kNumOfLayers = transformer_->GetConfig().NumLayers();
-  const size_t kDim = transformer_->GetConfig().Dim();
-  const auto& kWeights = transformer_->GetWeights();
+  auto& transformer = llama2_->GetTransformer();
+  const auto& tokenizer = llama2_->GetTokenizer();
+  const size_t kNumOfLayers = transformer.GetConfig().NumLayers();
+  const size_t kDim = transformer.GetConfig().Dim();
+  const auto& kWeights = transformer.GetWeights();
 
   reference_llama2::Transformer ref_transformer;
   reference_llama2::build_transformer(&ref_transformer, kChkPointPath.c_str());
@@ -80,11 +76,11 @@ TEST_F(RmsNormTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false,
+  llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer_->GetRunState().X().GetData());
+            transformer.GetRunState().X().GetData());
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -92,11 +88,11 @@ TEST_F(RmsNormTest, ForwardTest) {
     reference_llama2::rmsnorm(ref_run_state.xb, ref_run_state.x,
                               ref_weights.rms_att_weight + layer * kDim, kDim);
 
-    op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
+    op_set_->RmsNorm<float>(transformer.GetRunState().X(),
                             kWeights.RMSAttnWeight(layer),
-                            transformer_->GetRunState().XB());
+                            transformer.GetRunState().XB());
 
     EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                           transformer_->GetRunState().XB().GetData()));
+                           transformer.GetRunState().XB().GetData()));
   }
 }

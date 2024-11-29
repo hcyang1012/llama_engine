@@ -6,9 +6,9 @@
 #include <algorithm>
 
 #if defined(USE_LLAMA2)
-#include "references/reference_llama2.cpp"
+#include <references/reference_llama2.cpp>
 #endif
-#include "transformer.hpp"
+#include <llama.hpp>
 
 class TokenizerTest : public ::testing::Test {
  public:
@@ -20,11 +20,6 @@ class TokenizerTest : public ::testing::Test {
     reference_llama2::build_tokenizer(&ref_tokenizer_,
                                       kTokenizerBinPath.c_str(),
                                       ref_transformer_.config.vocab_size);
-
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
   void TearDown() override {
@@ -35,23 +30,25 @@ class TokenizerTest : public ::testing::Test {
   reference_llama2::Transformer ref_transformer_;
   reference_llama2::Tokenizer ref_tokenizer_;
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
-  std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::DeviceType::CPU);
-
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
+  const llama::LlamaConfig llama2_config = {
+      .checkpoint_path = kChkPointPath,
+      .tokenizer_path = kTokenizerBinPath,
+      .device_type = llama::DeviceType::CPU};
+  std::unique_ptr<llama::Llama2<float>> llama2 =
+      std::make_unique<llama::Llama2<float>>(llama2_config);
+  const llama::Tokenizer<float>& tokenizer_ = llama2->GetTokenizer();
 };
 
 TEST_F(TokenizerTest, VocabSizeTest) {
-  EXPECT_EQ(tokenizer_->VocabSize(), ref_tokenizer_.vocab_size);
-  EXPECT_EQ(tokenizer_->Vocab().size(), ref_tokenizer_.vocab_size);
-  EXPECT_EQ(tokenizer_->VocabScores().size(), ref_tokenizer_.vocab_size);
+  EXPECT_EQ(tokenizer_.VocabSize(), ref_tokenizer_.vocab_size);
+  EXPECT_EQ(tokenizer_.Vocab().size(), ref_tokenizer_.vocab_size);
+  EXPECT_EQ(tokenizer_.VocabScores().size(), ref_tokenizer_.vocab_size);
 }
 
 TEST_F(TokenizerTest, BytePicesTest) {
-  const auto& kBytePieces = tokenizer_->BytePieces();
+  const auto& kBytePieces = tokenizer_.BytePieces();
   const auto& refBytePieces = ref_tokenizer_.byte_pieces;
   for (size_t i = 0; i < 256; i++) {
     EXPECT_EQ(static_cast<unsigned char>(kBytePieces[i][0]),
@@ -62,19 +59,19 @@ TEST_F(TokenizerTest, BytePicesTest) {
 }
 
 TEST_F(TokenizerTest, MaxTokenLengthTest) {
-  EXPECT_EQ(tokenizer_->MaxTokenLength(), ref_tokenizer_.max_token_length);
+  EXPECT_EQ(tokenizer_.MaxTokenLength(), ref_tokenizer_.max_token_length);
 }
 
 TEST_F(TokenizerTest, VocabTest) {
-  const auto& kVocab = tokenizer_->Vocab();
+  const auto& kVocab = tokenizer_.Vocab();
   const auto& refVocab = ref_tokenizer_.vocab;
-  for (size_t i = 0; i < tokenizer_->VocabSize(); i++) {
+  for (size_t i = 0; i < tokenizer_.VocabSize(); i++) {
     EXPECT_EQ(kVocab[i], refVocab[i]);
   }
 }
 
 TEST_F(TokenizerTest, VocabSortTest) {
-  const auto& kSortedVocab = tokenizer_->VocabMap();
+  const auto& kSortedVocab = tokenizer_.VocabMap();
   reference_llama2::TokenIndex* ref_sorted_vocab =
       (reference_llama2::TokenIndex*)malloc(
           ref_tokenizer_.vocab_size * sizeof(reference_llama2::TokenIndex));

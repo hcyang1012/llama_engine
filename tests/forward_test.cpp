@@ -4,19 +4,12 @@
 
 #include "encoder.hpp"
 #if defined(USE_LLAMA2)
-#include "references/reference_llama2.cpp"
+#include <references/reference_llama2.cpp>
 #endif
-#include "tokenizer.hpp"
-#include "transformer.hpp"
-#include "weights.hpp"
+#include <llama.hpp>
 class ForwardTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
-  }
+  void SetUp() override {}
 
   void TearDown() override {
     // code here will be called just after the test completes
@@ -25,11 +18,6 @@ class ForwardTest : public ::testing::Test {
 
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
-
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
-  std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::DeviceType::CPU);
 };
 
 TEST_F(ForwardTest, Test) {
@@ -68,10 +56,17 @@ TEST_F(ForwardTest, Test) {
 
   // Forward Stage
   {
-    auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false,
+    const llama::LlamaConfig llama_config = {
+        .checkpoint_path = kChkPointPath,
+        .tokenizer_path = kTokenizerBinPath,
+        .device_type = llama::DeviceType::CPU};
+    llama::Llama2<float> llama2(llama_config);
+    auto &transformer = llama2.GetTransformer();
+    const auto &tokenizer = llama2.GetTokenizer();
+    auto encoder = llama::Encoder<float>(tokenizer, kPrompt, true, false,
                                          llama::SpecialTokensLlama2());
     auto result = encoder.PromptTokens();
-    auto logits = transformer_->Forward(result[0], 0);
+    auto logits = transformer.Forward(result[0], 0);
 
     // Float comparison of logits
     // for (size_t i = 0; i < logits.GetShape().GetSize(); i++) {

@@ -1,31 +1,20 @@
 #include <gtest/gtest.h>
 
-// For random number generation
-#include <op.hpp>
+#include <llama.hpp>
 #include <random>
+#include <references/reference_llama2.cpp>
 
-#include "encoder.hpp"
-#if defined(USE_LLAMA2)
-#include "references/reference_llama2.cpp"
-#endif
-#include "tokenizer.hpp"
-#include "transformer.hpp"
-#include "weights.hpp"
 class RopeTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
-  }
+  void SetUp() override {}
 
   void reference_rope(const float *input, const int position, float *output) {
-    const auto dim = transformer_->GetConfig().Dim();
-    const auto kv_dim = (transformer_->GetConfig().Dim() *
-                         transformer_->GetConfig().NumKVHeads()) /
-                        transformer_->GetConfig().NumHeads();
-    const auto head_size = dim / transformer_->GetConfig().NumHeads();
+    auto &transformer = llama2_->GetTransformer();
+    const auto dim = transformer.GetConfig().Dim();
+    const auto kv_dim =
+        (transformer.GetConfig().Dim() * transformer.GetConfig().NumKVHeads()) /
+        transformer.GetConfig().NumHeads();
+    const auto head_size = dim / transformer.GetConfig().NumHeads();
     for (int i = 0; i < dim; i += 2) {
       int head_dim = i % head_size;
       float theta = 1.0f / powf(10000.0f, head_dim / (float)head_size);
@@ -50,16 +39,22 @@ class RopeTest : public ::testing::Test {
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
+  const llama::LlamaConfig kLlamaConfig = {
+      .checkpoint_path = kChkPointPath.c_str(),
+      .tokenizer_path = kTokenizerBinPath.c_str(),
+      .device_type = llama::DeviceType::CPU};
+  std::unique_ptr<llama::Llama2<float>> llama2_ =
+      std::make_unique<llama::Llama2<float>>(kLlamaConfig);
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::DeviceType::CPU);
+      llama::CreateOpSet(kLlamaConfig.device_type);
 };
 
 TEST_F(RopeTest, ForwardTest) {
-  const size_t kNumOfLayers = transformer_->GetConfig().NumLayers();
-  const size_t kDim = transformer_->GetConfig().Dim();
-  const auto &kWeights = transformer_->GetWeights();
+  auto &transformer = llama2_->GetTransformer();
+  const auto &tokenizer = llama2_->GetTokenizer();
+  const size_t kNumOfLayers = transformer.GetConfig().NumLayers();
+  const size_t kDim = transformer.GetConfig().Dim();
+  const auto &kWeights = transformer.GetWeights();
 
   reference_llama2::Transformer ref_transformer;
   reference_llama2::build_transformer(&ref_transformer, kChkPointPath.c_str());
@@ -69,11 +64,11 @@ TEST_F(RopeTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false,
+  llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer_->GetRunState().X().GetData());
+            transformer.GetRunState().X().GetData());
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -81,8 +76,8 @@ TEST_F(RopeTest, ForwardTest) {
   const size_t kRefKVDim =
       (kRefConfig.dim * kRefConfig.n_kv_heads) / kRefConfig.n_heads;
 
-  const size_t kKVDim = (kDim * transformer_->GetConfig().NumKVHeads()) /
-                        transformer_->GetConfig().NumHeads();
+  const size_t kKVDim = (kDim * transformer.GetConfig().NumKVHeads()) /
+                        transformer.GetConfig().NumHeads();
 
   for (size_t layer = 0; layer < kNumOfLayers; layer++) {
     // RMSNorm
@@ -91,12 +86,12 @@ TEST_F(RopeTest, ForwardTest) {
                                 ref_weights.rms_att_weight + layer * kDim,
                                 kDim);
 
-      op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
+      op_set_->RmsNorm<float>(transformer.GetRunState().X(),
                               kWeights.RMSAttnWeight(layer),
-                              transformer_->GetRunState().XB());
+                              transformer.GetRunState().XB());
 
       EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                             transformer_->GetRunState().XB().GetData()));
+                             transformer.GetRunState().XB().GetData()));
     }
 
     const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
@@ -120,26 +115,26 @@ TEST_F(RopeTest, ForwardTest) {
 
       op_set_->MatMul<float>(
           kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
-          transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
+          transformer.GetRunState().XB(), transformer.GetRunState().Q());
 
-      auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
+      auto K = transformer.GetRunState().K(layer, kPos).ReShape({kKVDim});
       op_set_->MatMul<float>(
           kWeights.WK(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
-          transformer_->GetRunState().XB(), K);
+          transformer.GetRunState().XB(), K);
 
-      auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
+      auto V = transformer.GetRunState().V(layer, kPos).ReShape({kKVDim});
       op_set_->MatMul<float>(
           kWeights.WV(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
-          transformer_->GetRunState().XB(), V);
+          transformer.GetRunState().XB(), V);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q().GetData()));
+                             transformer.GetRunState().Q().GetData()));
       EXPECT_TRUE(
           std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
-                     transformer_->GetRunState().K(layer, kPos).GetData()));
+                     transformer.GetRunState().K(layer, kPos).GetData()));
       EXPECT_TRUE(
           std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
-                     transformer_->GetRunState().V(layer, kPos).GetData()));
+                     transformer.GetRunState().V(layer, kPos).GetData()));
     }
 
     const size_t kRefHeadSize = kDim / kRefConfig.n_heads;
@@ -162,12 +157,12 @@ TEST_F(RopeTest, ForwardTest) {
           vec[i + 1] = v0 * fci + v1 * fcr;
         }
       }
-      auto Q = transformer_->GetRunState().Q();
-      auto K = transformer_->GetRunState().K(0, kPos);
-      op_set_->RoPE<float>(kPos, transformer_->GetConfig(), Q, K);
+      auto Q = transformer.GetRunState().Q();
+      auto K = transformer.GetRunState().K(0, kPos);
+      op_set_->RoPE<float>(kPos, transformer.GetConfig(), Q, K);
 
       EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer_->GetRunState().Q().GetData()));
+                             transformer.GetRunState().Q().GetData()));
     }
   }
 }

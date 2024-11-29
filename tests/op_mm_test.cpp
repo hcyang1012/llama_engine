@@ -1,16 +1,10 @@
 #include <gtest/gtest.h>
 
-// For random number generation
+#include <llama.hpp>
 #include <op.hpp>
 #include <random>
 
-#include "encoder.hpp"
-#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
-#endif
-#include "tokenizer.hpp"
-#include "transformer.hpp"
-#include "weights.hpp"
 class MatMulTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -20,9 +14,9 @@ class MatMulTest : public ::testing::Test {
     std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
     weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d, n}),
-                                                     op_set_->GetDeviceType());
+                                                     kLlamaConfig.device_type);
     input_ = std::make_unique<llama::Tensor<float>>(llama::Shape({d}),
-                                                    op_set_->GetDeviceType());
+                                                    kLlamaConfig.device_type);
 
     for (size_t i = 0; i < n; i++) {
       for (size_t j = 0; j < d; j++) {
@@ -33,11 +27,6 @@ class MatMulTest : public ::testing::Test {
     for (size_t i = 0; i < d; i++) {
       (*input_)[i] = dis(gen);
     }
-
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-    tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
-        kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
 
   void TearDown() override {
@@ -62,16 +51,19 @@ class MatMulTest : public ::testing::Test {
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
-  std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
-
+  const llama::LlamaConfig kLlamaConfig = {
+      .checkpoint_path = kChkPointPath.c_str(),
+      .tokenizer_path = kTokenizerBinPath.c_str(),
+      .device_type = llama::DeviceType::CPU};
+  std::unique_ptr<llama::Llama2<float>> llama2_ =
+      std::make_unique<llama::Llama2<float>>(kLlamaConfig);
   std::unique_ptr<llama::OpSet> op_set_ =
-      llama::CreateOpSet(llama::DeviceType::CPU);
+      llama::CreateOpSet(kLlamaConfig.device_type);
 };
 
 TEST_F(MatMulTest, MatMulTest) {
   std::vector<float> expected_o(n);
-  llama::Tensor<float> actual({n}, op_set_->GetDeviceType());
+  llama::Tensor<float> actual({n}, kLlamaConfig.device_type);
   op_set_->MatMul<float>(*weight_, *input_, actual);
   reference_llama2::matmul(expected_o.data(), input_->GetData(),
                            weight_->GetData(), d, n);
@@ -81,10 +73,12 @@ TEST_F(MatMulTest, MatMulTest) {
 }
 
 TEST_F(MatMulTest, ForwardTest) {
-  const auto& kConfig = transformer_->GetConfig();
+  auto& transformer = llama2_->GetTransformer();
+  const auto& tokenizer = llama2_->GetTokenizer();
+  const auto& kConfig = transformer.GetConfig();
   const size_t kNumOfLayers = kConfig.NumLayers();
   const size_t kDim = kConfig.Dim();
-  const auto& kWeights = transformer_->GetWeights();
+  const auto& kWeights = transformer.GetWeights();
 
   reference_llama2::Transformer ref_transformer;
   reference_llama2::build_transformer(&ref_transformer, kChkPointPath.c_str());
@@ -94,11 +88,11 @@ TEST_F(MatMulTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false,
+  llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer_->GetRunState().X().GetData());
+            transformer.GetRunState().X().GetData());
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -108,12 +102,12 @@ TEST_F(MatMulTest, ForwardTest) {
     reference_llama2::rmsnorm(ref_run_state.xb, ref_run_state.x,
                               ref_weights.rms_att_weight + layer * kDim, kDim);
 
-    op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
+    op_set_->RmsNorm<float>(transformer.GetRunState().X(),
                             kWeights.RMSAttnWeight(layer),
-                            transformer_->GetRunState().XB());
+                            transformer.GetRunState().XB());
 
     EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                           transformer_->GetRunState().XB().GetData()));
+                           transformer.GetRunState().XB().GetData()));
 
     const auto kLayerOffset = layer * kConfig.SeqLen() * kKVDim;
     ref_run_state.k = ref_run_state.key_cache + kLayerOffset + kPos * kKVDim;
@@ -122,19 +116,19 @@ TEST_F(MatMulTest, ForwardTest) {
     // Calculate Q
     op_set_->MatMul<float>(
         kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
-        transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
+        transformer.GetRunState().XB(), transformer.GetRunState().Q());
 
     reference_llama2::matmul(ref_run_state.q, ref_run_state.xb,
                              ref_weights.wq + layer * kDim * kDim, kDim, kDim);
 
     EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                           transformer_->GetRunState().Q().GetData()));
+                           transformer.GetRunState().Q().GetData()));
 
     // Calculate K
-    auto K = transformer_->GetRunState().K(layer, kPos).ReShape({kKVDim});
+    auto K = transformer.GetRunState().K(layer, kPos).ReShape({kKVDim});
     op_set_->MatMul<float>(
         kWeights.WK(layer).ReShape(llama::Shape({kDim, kKVDim})),
-        transformer_->GetRunState().XB(), K);
+        transformer.GetRunState().XB(), K);
     reference_llama2::matmul(ref_run_state.k, ref_run_state.xb,
                              ref_weights.wk + layer * kDim * kKVDim, kDim,
                              kKVDim);
@@ -142,10 +136,10 @@ TEST_F(MatMulTest, ForwardTest) {
         std::equal(ref_run_state.k, ref_run_state.k + kKVDim, K.GetData()));
 
     // Calculate V
-    auto V = transformer_->GetRunState().V(layer, kPos).ReShape({kKVDim});
+    auto V = transformer.GetRunState().V(layer, kPos).ReShape({kKVDim});
     op_set_->MatMul<float>(
         kWeights.WV(layer).ReShape(llama::Shape({kDim, kKVDim})),
-        transformer_->GetRunState().XB(), V);
+        transformer.GetRunState().XB(), V);
     reference_llama2::matmul(ref_run_state.v, ref_run_state.xb,
                              ref_weights.wv + layer * kDim * kKVDim, kDim,
                              kKVDim);
