@@ -24,7 +24,8 @@ namespace llama {
 template <typename T>
 class TransformerWeights {
  public:
-  TransformerWeights(const std::string &checkpoint_path, const Config &config,
+  TransformerWeights(const std::string &checkpoint_path,
+                     const TransformerConfig &config,
                      const DeviceType device_type)
       : config(config), device_type_(device_type) {
     load_weights(checkpoint_path);
@@ -206,12 +207,12 @@ class TransformerWeights {
       throw std::runtime_error("Failed to map the checkpoint file.");
     }
 
-    T *weights_ptr = mapped_file_ + Config::Size() / sizeof(T);
+    T *weights_ptr = mapped_file_ + TransformerConfig::Size() / sizeof(T);
 
     load_weights(weights_ptr, config.VocabSize() > 0);
   }
 
-  const Config &config;
+  const TransformerConfig &config;
   const T *token_embedding_table_;  ///< Token embedding table. Shape:
                                     ///< [vocab_size, dim]
   const T *rms_attn_weight_;  ///< RMS attention weight. Shape: [layer, dim]

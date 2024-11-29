@@ -31,7 +31,7 @@ template <typename T>
 class LlamaModel {
  public:
   LlamaModel(const LlamaConfig& llama_config,
-             std::unique_ptr<Config> transformer_config,
+             std::unique_ptr<TransformerConfig> transformer_config,
              std::unique_ptr<OpSet> op_set,
              std::unique_ptr<SpecialTokens> special_tokens)
       : transformer_config_(std::move(transformer_config)),
@@ -59,7 +59,7 @@ class LlamaModel {
   const auto& GetTokenizer() const { return *tokenizer_; }
 
  protected:
-  std::unique_ptr<Config> transformer_config_;
+  std::unique_ptr<TransformerConfig> transformer_config_;
   std::unique_ptr<TransformerWeights<T>> weights_;
   std::unique_ptr<OpSet> op_set_;
   std::unique_ptr<SpecialTokens> special_tokens_;
@@ -67,13 +67,13 @@ class LlamaModel {
   std::unique_ptr<Tokenizer<T>> tokenizer_;
 
  private:
-  std::unique_ptr<Config> load_config(const std::string& ckpt_file) {
+  std::unique_ptr<TransformerConfig> load_config(const std::string& ckpt_file) {
     std::ifstream if_chkpt_file(ckpt_file, std::ios::binary);
     if (!if_chkpt_file.is_open()) {
       throw std::runtime_error("Failed to open the checkpoint file.");
     }
 
-    return std::make_unique<Config>(if_chkpt_file);
+    return std::make_unique<TransformerConfig>(if_chkpt_file);
   }
 };
 

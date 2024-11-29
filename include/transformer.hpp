@@ -23,8 +23,6 @@
 #include <decoder.hpp>
 #include <encoder.hpp>
 #include <op.hpp>
-#include <weights.hpp>
-// #include <op.hpp>
 #include <run_state.hpp>
 #include <sampler.hpp>
 #include <tensor.hpp>
@@ -43,8 +41,9 @@ struct RunConfig {
 template <typename T>
 class Transformer {
  public:
-  Transformer(const Config &config, const TransformerWeights<T> &weights,
-              OpSet &op_set, const SpecialTokens &special_tokens)
+  Transformer(const TransformerConfig &config,
+              const TransformerWeights<T> &weights, OpSet &op_set,
+              const SpecialTokens &special_tokens)
       : config_(config),
         weights_(weights),
         op_set_(op_set),
@@ -228,7 +227,7 @@ class Transformer {
     }
   }
 
-  const Config &config_;  ///< Hyperparameters of the Transformer
+  const TransformerConfig &config_;  ///< Hyperparameters of the Transformer
   const TransformerWeights<T> &weights_;  ///< Weights of the Transformer
   OpSet &op_set_;
   const SpecialTokens &special_tokens_;

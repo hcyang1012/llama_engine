@@ -22,7 +22,7 @@ namespace llama {
 template <typename T>
 class RunState {
  public:
-  RunState(const Config& config, const DeviceType device_type)
+  RunState(const TransformerConfig& config, const DeviceType device_type)
       : config_(config), device_type_(device_type) {
     size_t kKVDims = (config.Dim() * config.NumKVHeads()) / config.NumHeads();
     x = std::make_unique<Tensor<T>>(Shape{static_cast<size_t>(config.Dim())},
@@ -175,7 +175,7 @@ class RunState {
   Tensor<T>& ValueCache() { return *value_cache; }
 
  private:
-  const Config& config_;
+  const TransformerConfig& config_;
   const DeviceType device_type_;
   std::unique_ptr<Tensor<T>> x;   ///< activation at current time stamp (dim,)
   std::unique_ptr<Tensor<T>> xb;  ///< same, but inside a residual branch (dim,)

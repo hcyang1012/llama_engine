@@ -1,6 +1,6 @@
 /**
  * @file config.hpp
- * @brief Header file for the Config class.
+ * @brief Header file for the TransformerConfig class.
  * @author Heecheol Yang (heecheol.yang@outlook.com)
  * @date 2024-05-03
  */
@@ -22,9 +22,9 @@ namespace llama {
 /**
  * @brief Configuration class for the Transformer model.
  */
-class Config {
+class TransformerConfig {
  public:
-  Config(const std::string &config_file) {
+  TransformerConfig(const std::string &config_file) {
     std::ifstream if_config_file(config_file, std::ios::binary);
     load_config(if_config_file);
   }
@@ -71,27 +71,27 @@ class Config {
   void load_config(std::ifstream &config_file);
 };
 
-llama_uint32_t Config::Dim() const { return kDim; }
+llama_uint32_t TransformerConfig::Dim() const { return kDim; }
 
-llama_uint32_t Config::HiddenDim() const { return kHiddenDim; }
+llama_uint32_t TransformerConfig::HiddenDim() const { return kHiddenDim; }
 
-llama_uint32_t Config::NumLayers() const { return kNumLayers; }
+llama_uint32_t TransformerConfig::NumLayers() const { return kNumLayers; }
 
-llama_uint32_t Config::NumHeads() const { return kNumHeads; }
+llama_uint32_t TransformerConfig::NumHeads() const { return kNumHeads; }
 
-llama_uint32_t Config::NumKVHeads() const { return kNumKVHeads; }
+llama_uint32_t TransformerConfig::NumKVHeads() const { return kNumKVHeads; }
 
-llama_uint32_t Config::HeadDim() const { return kHeadDim; }
+llama_uint32_t TransformerConfig::HeadDim() const { return kHeadDim; }
 
-llama_uint32_t Config::KVHeadDim() const { return kKVHeadDim; }
+llama_uint32_t TransformerConfig::KVHeadDim() const { return kKVHeadDim; }
 
-llama_uint32_t Config::KVMul() const { return kKVMul; }
+llama_uint32_t TransformerConfig::KVMul() const { return kKVMul; }
 
-llama_uint32_t Config::VocabSize() const { return kVocabSize; }
+llama_uint32_t TransformerConfig::VocabSize() const { return kVocabSize; }
 
-llama_uint32_t Config::SeqLen() const { return kSeqLen; }
+llama_uint32_t TransformerConfig::SeqLen() const { return kSeqLen; }
 
-void Config::load_config(std::ifstream &config_file) {
+void TransformerConfig::load_config(std::ifstream &config_file) {
   config_file.read(reinterpret_cast<char *>(&kDim), sizeof(kDim));
   config_file.read(reinterpret_cast<char *>(&kHiddenDim), sizeof(kHiddenDim));
   config_file.read(reinterpret_cast<char *>(&kNumLayers), sizeof(kNumLayers));
@@ -106,15 +106,16 @@ void Config::load_config(std::ifstream &config_file) {
   kKVMul = NumHeads() / NumKVHeads();
 }
 
-size_t Config::Size() {
+size_t TransformerConfig::Size() {
   return sizeof(kDim) + sizeof(kHiddenDim) + sizeof(kNumLayers) +
          sizeof(kNumHeads) + sizeof(kNumKVHeads) + sizeof(kVocabSize) +
          sizeof(kSeqLen);
 }
 
-class ConfigLlama2 : public Config {
+class ConfigLlama2 : public TransformerConfig {
  public:
-  ConfigLlama2(const std::string &config_file) : Config(config_file) {}
+  ConfigLlama2(const std::string &config_file)
+      : TransformerConfig(config_file) {}
   llama_float Freq() const override { return 10000.0f; }
 };
 

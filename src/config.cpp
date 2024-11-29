@@ -16,29 +16,31 @@
 
 namespace llama {
 
-Config::Config(std::ifstream &config_file) { load_config(config_file); }
+TransformerConfig::Config(std::ifstream &config_file) {
+  load_config(config_file);
+}
 
-llama_uint32_t Config::Dim() const { return kDim; }
+llama_uint32_t TransformerConfig::Dim() const { return kDim; }
 
-llama_uint32_t Config::HiddenDim() const { return kHiddenDim; }
+llama_uint32_t TransformerConfig::HiddenDim() const { return kHiddenDim; }
 
-llama_uint32_t Config::NumLayers() const { return kNumLayers; }
+llama_uint32_t TransformerConfig::NumLayers() const { return kNumLayers; }
 
-llama_uint32_t Config::NumHeads() const { return kNumHeads; }
+llama_uint32_t TransformerConfig::NumHeads() const { return kNumHeads; }
 
-llama_uint32_t Config::NumKVHeads() const { return kNumKVHeads; }
+llama_uint32_t TransformerConfig::NumKVHeads() const { return kNumKVHeads; }
 
-llama_uint32_t Config::HeadDim() const { return kHeadDim; }
+llama_uint32_t TransformerConfig::HeadDim() const { return kHeadDim; }
 
-llama_uint32_t Config::KVHeadDim() const { return kKVHeadDim; }
+llama_uint32_t TransformerConfig::KVHeadDim() const { return kKVHeadDim; }
 
-llama_uint32_t Config::KVMul() const { return kKVMul; }
+llama_uint32_t TransformerConfig::KVMul() const { return kKVMul; }
 
-llama_uint32_t Config::VocabSize() const { return kVocabSize; }
+llama_uint32_t TransformerConfig::VocabSize() const { return kVocabSize; }
 
-llama_uint32_t Config::SeqLen() const { return kSeqLen; }
+llama_uint32_t TransformerConfig::SeqLen() const { return kSeqLen; }
 
-void Config::load_config(std::ifstream &config_file) {
+void TransformerConfig::load_config(std::ifstream &config_file) {
   config_file.read(reinterpret_cast<char *>(&kDim), sizeof(kDim));
   config_file.read(reinterpret_cast<char *>(&kHiddenDim), sizeof(kHiddenDim));
   config_file.read(reinterpret_cast<char *>(&kNumLayers), sizeof(kNumLayers));
@@ -53,7 +55,7 @@ void Config::load_config(std::ifstream &config_file) {
   kKVMul = NumHeads() / NumKVHeads();
 }
 
-size_t Config::Size() {
+size_t TransformerConfig::Size() {
   return sizeof(kDim) + sizeof(kHiddenDim) + sizeof(kNumLayers) +
          sizeof(kNumHeads) + sizeof(kNumKVHeads) + sizeof(kVocabSize) +
          sizeof(kSeqLen);

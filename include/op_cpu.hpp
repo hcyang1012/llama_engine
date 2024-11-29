@@ -115,7 +115,7 @@ class MatMul {
 template <typename T>
 class RoPE {
  public:
-  static void Compute(const size_t position, const Config& config,
+  static void Compute(const size_t position, const TransformerConfig& config,
                       Tensor<float>& Q, Tensor<float>& K) {
     DCHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
@@ -124,8 +124,8 @@ class RoPE {
   }
 
  private:
-  static void Compute(const size_t position, const Config& config, float* Q,
-                      float* K) {
+  static void Compute(const size_t position, const TransformerConfig& config,
+                      float* Q, float* K) {
     const size_t kDim = config.Dim();
     const size_t kNumOfHeads = config.NumHeads();
     const size_t kKVDim = config.KVHeadDim();
@@ -211,7 +211,7 @@ class Attention {
    * @param output {kPerHeadDim}
    */
   static void Compute(const Tensor<T>& Q, const Tensor<T>& K,
-                      const Tensor<T>& V, const Config& config,
+                      const Tensor<T>& V, const TransformerConfig& config,
                       const size_t pos, const size_t header_idx,
                       Tensor<T>& output) {
     const size_t kPerHeadDim = config.Dim() / config.NumHeads();
