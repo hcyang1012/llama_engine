@@ -53,7 +53,7 @@ class SpecialTokensLlama2 : public SpecialTokens {
   }
 };
 
-class SpeicalTokensLlama3 : public SpecialTokens {
+class SpecialTokensLlama3 : public SpecialTokens {
  public:
   size_t GetToken(const Idx idx) const override {
     switch (idx) {

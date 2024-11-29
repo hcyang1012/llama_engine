@@ -209,7 +209,7 @@ class TransformerWeights {
 
     T *weights_ptr = mapped_file_ + TransformerConfig::Size() / sizeof(T);
 
-    load_weights(weights_ptr, config.VocabSize() > 0);
+    load_weights(weights_ptr, config.ShareWeights());
   }
 
   const TransformerConfig &config;

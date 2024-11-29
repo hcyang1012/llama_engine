@@ -90,4 +90,18 @@ class Llama2 : public LlamaModel<T> {
 
  protected:
 };
+
+template <typename T>
+class Llama3 : public LlamaModel<T> {
+ public:
+  Llama3(const LlamaConfig& llama_config)
+      : LlamaModel<T>(llama_config,
+                      std::move(std::make_unique<ConfigLlama3>(
+                          llama_config.checkpoint_path)),
+                      std::move(CreateOpSet(llama_config.device_type)),
+                      std::move(std::make_unique<SpecialTokensLlama3>())) {}
+  ~Llama3() = default;
+
+ protected:
+};
 }  // namespace llama

@@ -46,6 +46,8 @@ class TransformerConfig {
   llama_uint32_t VocabSize() const;  ///< Get the size of the vocabulary
   llama_uint32_t SeqLen() const;     ///< Get the maximum sequence length
 
+  bool ShareWeights() const;  ///< Get whether to share weights between layers
+
   virtual llama_float Freq() const = 0;
 
   static size_t Size();  ///< Get the size of the configuration in bytes
@@ -67,6 +69,7 @@ class TransformerConfig {
       kKVMul;  /// Number of heads for key and value per head for query
   llama_uint32_t kVocabSize;  ///< Size of the vocabulary
   llama_uint32_t kSeqLen;     ///< Maximum sequence length
+  bool kShareWeights;         ///< Whether to share weights between layers
 
   void load_config(std::ifstream &config_file);
 };
@@ -91,16 +94,21 @@ llama_uint32_t TransformerConfig::VocabSize() const { return kVocabSize; }
 
 llama_uint32_t TransformerConfig::SeqLen() const { return kSeqLen; }
 
+bool TransformerConfig::ShareWeights() const { return kShareWeights; }
+
 void TransformerConfig::load_config(std::ifstream &config_file) {
   config_file.read(reinterpret_cast<char *>(&kDim), sizeof(kDim));
   config_file.read(reinterpret_cast<char *>(&kHiddenDim), sizeof(kHiddenDim));
   config_file.read(reinterpret_cast<char *>(&kNumLayers), sizeof(kNumLayers));
   config_file.read(reinterpret_cast<char *>(&kNumHeads), sizeof(kNumHeads));
   config_file.read(reinterpret_cast<char *>(&kNumKVHeads), sizeof(kNumKVHeads));
-  config_file.read(reinterpret_cast<char *>(&kVocabSize), sizeof(kVocabSize));
+
+  int32_t vocab_size;
+  config_file.read(reinterpret_cast<char *>(&vocab_size), sizeof(vocab_size));
+  kVocabSize = static_cast<llama_uint32_t>(std::abs(vocab_size));
+  kShareWeights = vocab_size > 0;
   config_file.read(reinterpret_cast<char *>(&kSeqLen), sizeof(kSeqLen));
 
-  kVocabSize = VocabSize();
   kKVHeadDim = Dim() * NumKVHeads() / NumHeads();
   kHeadDim = Dim() / NumHeads();
   kKVMul = NumHeads() / NumKVHeads();
@@ -117,6 +125,13 @@ class ConfigLlama2 : public TransformerConfig {
   ConfigLlama2(const std::string &config_file)
       : TransformerConfig(config_file) {}
   llama_float Freq() const override { return 10000.0f; }
+};
+
+class ConfigLlama3 : public TransformerConfig {
+ public:
+  ConfigLlama3(const std::string &config_file)
+      : TransformerConfig(config_file) {}
+  llama_float Freq() const override { return 500000.0f; }
 };
 
 }  // namespace llama
