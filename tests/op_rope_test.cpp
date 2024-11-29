@@ -61,8 +61,8 @@ TEST_F(RopeTest, ForwardTest) {
   const size_t kDim = transformer_->GetConfig().Dim();
   const auto &kWeights = transformer_->GetWeights();
 
-  reference::Transformer ref_transformer;
-  reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
+  reference_llama2::Transformer ref_transformer;
+  reference_llama2::build_transformer(&ref_transformer, kChkPointPath.c_str());
   const auto ref_weights = ref_transformer.weights;
   auto ref_run_state = ref_transformer.state;
 
@@ -86,8 +86,9 @@ TEST_F(RopeTest, ForwardTest) {
   for (size_t layer = 0; layer < kNumOfLayers; layer++) {
     // RMSNorm
     {
-      reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
-                         ref_weights.rms_att_weight + layer * kDim, kDim);
+      reference_llama2::rmsnorm(ref_run_state.xb, ref_run_state.x,
+                                ref_weights.rms_att_weight + layer * kDim,
+                                kDim);
 
       op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
                               kWeights.RMSAttnWeight(layer),
@@ -106,14 +107,15 @@ TEST_F(RopeTest, ForwardTest) {
     // Calculate QKV
     {
       // qkv matmuls for this position
-      reference::matmul(ref_run_state.q, ref_run_state.xb,
-                        ref_weights.wq + layer * kDim * kDim, kDim, kDim);
-      reference::matmul(ref_run_state.k, ref_run_state.xb,
-                        ref_weights.wk + layer * kDim * kRefKVDim, kDim,
-                        kRefKVDim);
-      reference::matmul(ref_run_state.v, ref_run_state.xb,
-                        ref_weights.wv + layer * kDim * kRefKVDim, kDim,
-                        kRefKVDim);
+      reference_llama2::matmul(ref_run_state.q, ref_run_state.xb,
+                               ref_weights.wq + layer * kDim * kDim, kDim,
+                               kDim);
+      reference_llama2::matmul(ref_run_state.k, ref_run_state.xb,
+                               ref_weights.wk + layer * kDim * kRefKVDim, kDim,
+                               kRefKVDim);
+      reference_llama2::matmul(ref_run_state.v, ref_run_state.xb,
+                               ref_weights.wv + layer * kDim * kRefKVDim, kDim,
+                               kRefKVDim);
 
       op_set_->MatMul<float>(
           kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),

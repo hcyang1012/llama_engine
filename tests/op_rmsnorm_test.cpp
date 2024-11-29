@@ -60,8 +60,8 @@ TEST_F(RmsNormTest, RmsNormTest) {
 
   auto op_set_ = llama::CreateOpSet(llama::DeviceType::CPU);
   op_set_->RmsNorm<float>(*x_, *weight_, actual);
-  reference::rmsnorm(expected_o.data(), x_->GetData(), weight_->GetData(),
-                     kSize);
+  reference_llama2::rmsnorm(expected_o.data(), x_->GetData(),
+                            weight_->GetData(), kSize);
 
   EXPECT_TRUE(
       std::equal(expected_o.begin(), expected_o.end(), actual.GetData()));
@@ -72,8 +72,8 @@ TEST_F(RmsNormTest, ForwardTest) {
   const size_t kDim = transformer_->GetConfig().Dim();
   const auto& kWeights = transformer_->GetWeights();
 
-  reference::Transformer ref_transformer;
-  reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
+  reference_llama2::Transformer ref_transformer;
+  reference_llama2::build_transformer(&ref_transformer, kChkPointPath.c_str());
   const auto ref_weights = ref_transformer.weights;
   auto ref_run_state = ref_transformer.state;
 
@@ -88,8 +88,8 @@ TEST_F(RmsNormTest, ForwardTest) {
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
   for (size_t layer = 0; layer < kNumOfLayers; layer++) {
-    reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
-                       ref_weights.rms_att_weight + layer * kDim, kDim);
+    reference_llama2::rmsnorm(ref_run_state.xb, ref_run_state.x,
+                              ref_weights.rms_att_weight + layer * kDim, kDim);
 
     op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
                             kWeights.RMSAttnWeight(layer),

@@ -1,9 +1,4 @@
-/**
- * This is a copy of llama2.c code (https://github.com/karpathy/llama2.c)
- * with some modifications to make it work with the C++ code.
- */
-
-/* Inference for Llama-2 Transformer model in pure C */
+/* Inference for Llama-3 Transformer model in pure C */
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -18,10 +13,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
-#include <fstream>
-#include <iostream>
 extern "C" {
-namespace reference_llama2 {
+namespace reference_llama3 {
 // ----------------------------------------------------------------------------
 // Transformer model
 
@@ -32,7 +25,7 @@ typedef struct {
   int n_heads;     // number of query heads
   int n_kv_heads;  // number of key/value heads (can be < query heads because of
                    // multiquery)
-  int vocab_size;  // vocabulary size, usually 256 (byte-level)
+  int vocab_size;  // vocabulary size, usually 4096 (byte-level)
   int seq_len;     // max sequence length
 } Config;
 
@@ -155,7 +148,7 @@ void memory_map_weights(TransformerWeights *w, Config *p, float *ptr,
   w->wcls = shared_weights ? w->token_embedding_table : ptr;
 }
 
-void read_checkpoint(const char *checkpoint, Config *config,
+void read_checkpoint(char *checkpoint, Config *config,
                      TransformerWeights *weights, int *fd, float **data,
                      ssize_t *file_size) {
   FILE *file = fopen(checkpoint, "rb");
@@ -171,8 +164,13 @@ void read_checkpoint(const char *checkpoint, Config *config,
   int shared_weights = config->vocab_size > 0 ? 1 : 0;
   config->vocab_size = abs(config->vocab_size);
   // figure out the file size
+#if defined _WIN32
+  _fseeki64(file, 0, SEEK_END);  // move file pointer to end of file
+  *file_size = _ftelli64(file);  // get the file size, in bytes
+#else
   fseek(file, 0, SEEK_END);  // move file pointer to end of file
   *file_size = ftell(file);  // get the file size, in bytes
+#endif
   fclose(file);
   // memory map the Transformer weights into the data pointer
   *fd = open(checkpoint, O_RDONLY);  // open in read only mode
@@ -189,7 +187,7 @@ void read_checkpoint(const char *checkpoint, Config *config,
   memory_map_weights(weights, config, weights_ptr, shared_weights);
 }
 
-void build_transformer(Transformer *t, const char *checkpoint_path) {
+void build_transformer(Transformer *t, char *checkpoint_path) {
   // read in the Config and the Weights from the checkpoint
   read_checkpoint(checkpoint_path, &t->config, &t->weights, &t->fd, &t->data,
                   &t->file_size);
@@ -212,7 +210,7 @@ void free_transformer(Transformer *t) {
 // ----------------------------------------------------------------------------
 // neural net blocks; the dynamics of the Transformer
 
-void rmsnorm(float *o, const float *x, const float *weight, const int size) {
+void rmsnorm(float *o, float *x, float *weight, int size) {
   // calculate sum of squares
   float ss = 0.0f;
   for (int j = 0; j < size; j++) {
@@ -297,20 +295,22 @@ float *forward(Transformer *transformer, int token, int pos) {
 
     // RoPE relative positional encoding: complex-valued rotate q and k in each
     // head
-    for (int i = 0; i < dim; i += 2) {
-      int head_dim = i % head_size;
-      float theta = 1.0f / powf(10000.0f, head_dim / (float)head_size);
-      float val = pos * theta;
-      float fcr = cosf(val);
-      float fci = sinf(val);
-      int rotn = i < kv_dim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
-      for (int v = 0; v < rotn; v++) {
-        float *vec =
-            v == 0 ? s->q : s->k;  // the vector to rotate (query or key)
-        float v0 = vec[i];
-        float v1 = vec[i + 1];
-        vec[i] = v0 * fcr - v1 * fci;
-        vec[i + 1] = v0 * fci + v1 * fcr;
+    for (int i = 0; i < p->n_heads; i++) {
+      for (int j = 0; j < head_size; j += 2) {
+        float freq = 1.0f / powf(500000.0f, (float)j / (float)head_size);
+        float val = pos * freq;
+        float fcr = cosf(val);
+        float fci = sinf(val);
+        float q0 = s->q[i * head_size + j];
+        float q1 = s->q[i * head_size + j + 1];
+        s->q[i * head_size + j] = q0 * fcr - q1 * fci;
+        s->q[i * head_size + j + 1] = q0 * fci + q1 * fcr;
+        if (i < p->n_kv_heads) {
+          float k0 = s->k[i * head_size + j];
+          float k1 = s->k[i * head_size + j + 1];
+          s->k[i * head_size + j] = k0 * fcr - k1 * fci;
+          s->k[i * head_size + j + 1] = k0 * fci + k1 * fcr;
+        }
       }
     }
 
@@ -354,6 +354,7 @@ float *forward(Transformer *transformer, int token, int pos) {
         }
       }
     }
+
     // final matmul to get the output of the attention
     matmul(s->xb2, s->xb, w->wo + l * dim * dim, dim, dim);
 
@@ -401,7 +402,7 @@ float *forward(Transformer *transformer, int token, int pos) {
 // The Byte Pair Encoding (BPE) Tokenizer that translates strings <-> tokens
 
 typedef struct {
-  const char *str;
+  char *str;
   int id;
 } TokenIndex;
 
@@ -429,7 +430,6 @@ void build_tokenizer(Tokenizer *t, const char *tokenizer_path, int vocab_size) {
     t->byte_pieces[i * 2] = (unsigned char)i;
     t->byte_pieces[i * 2 + 1] = '\0';
   }
-
   // read in the file
   FILE *file = fopen(tokenizer_path, "rb");
   if (!file) {
@@ -471,11 +471,7 @@ void free_tokenizer(Tokenizer *t) {
 
 char *decode(Tokenizer *t, int prev_token, int token) {
   char *piece = t->vocab[token];
-  // following BOS (1) token, sentencepiece decoder strips any leading
-  // whitespace (see PR #89)
-  if (prev_token == 1 && piece[0] == ' ') {
-    piece++;
-  }
+
   // careful, some tokens designate raw bytes, and look like e.g. '<0x01>'
   // parse this and convert and return the actual byte
   unsigned char byte_val;
@@ -504,14 +500,12 @@ void safe_printf(char *piece) {
   printf("%s", piece);
 }
 
-int str_lookup(const char *str, const TokenIndex *sorted_vocab,
-               int vocab_size) {
+int str_lookup(char *str, TokenIndex *sorted_vocab, int vocab_size) {
   // efficiently find the perfect match for str in vocab, return its index or -1
   // if not found
-  const TokenIndex tok = {.str = str};  // acts as the key to search for
-  TokenIndex *res =
-      (TokenIndex *)bsearch((const void *)&tok, (const void *)sorted_vocab,
-                            vocab_size, sizeof(TokenIndex), compare_tokens);
+  TokenIndex tok = {.str = str};  // acts as the key to search for
+  TokenIndex *res = (TokenIndex *)bsearch(&tok, sorted_vocab, vocab_size,
+                                          sizeof(TokenIndex), compare_tokens);
   return res != NULL ? res->id : -1;
 }
 
@@ -545,19 +539,14 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
   // start at 0 tokens
   *n_tokens = 0;
 
-  // add optional BOS (=1) token, if desired
-  if (bos) tokens[(*n_tokens)++] = 1;
+  // add optional BOS (=128000) token, if desired
+  if (bos) tokens[(*n_tokens)++] = 128000;
 
   // add_dummy_prefix is true by default
   // so prepend a dummy prefix token to the input string, but only if text != ""
   // TODO: pretty sure this isn't correct in the general case but I don't have
   // the energy to read more of the sentencepiece code to figure out what it's
   // doing
-  if (text[0] != '\0') {
-    const char *tmp = " ";
-    int dummy_prefix = str_lookup(tmp, t->sorted_vocab, t->vocab_size);
-    tokens[(*n_tokens)++] = dummy_prefix;
-  }
 
   // Okay UTF-8 time. This will get messy. Here is the reference from Wikipedia:
   // Code point ↔ UTF-8 conversion
@@ -570,10 +559,10 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
   // process the raw (UTF-8) byte sequence of the input string
   for (const char *c = text; *c != '\0'; c++) {
     // reset buffer if the current byte is ASCII or a leading byte
-    // 0xC0 is 1100_0000, so (*c & 0xC0) keeps the first 2 bits and zeros the
-    // rest 0x80 is 1000_0000 in UTF-8, all continuation bytes start with "10"
-    // in first two bits so in English this is: "if this byte is not a
-    // continuation byte"
+    // 0xC0 is 11000000, so (*c & 0xC0) keeps the first 2 bits and zeros the
+    // rest 0x80 is 10000000 in UTF-8, all continuation bytes start with "10" in
+    // first two bits so in English this is: "if this byte is not a continuation
+    // byte"
     if ((*c & 0xC0) != 0x80) {
       // this byte must be either a leading byte (11...) or an ASCII char
       // (0x...)
@@ -610,13 +599,16 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
     str_len = 0;  // protect against a sequence of stray UTF8 continuation bytes
   }
 
-  // merge the best consecutive pair each iteration, according the scores in
-  // vocab_scores
+  // merge the best consecutive pair or triple each iteration, according to the
+  // scores in vocab_scores
   while (1) {
     float best_score = -1e10;
     int best_id = -1;
     int best_idx = -1;
+    int best_len =
+        2;  // length of the best merge sequence (2 for pair, 3 for triple)
 
+    // first, try to find the best pair to merge
     for (int i = 0; i < (*n_tokens - 1); i++) {
       // check if we can merge the pair (tokens[i], tokens[i+1])
       sprintf(str_buffer, "%s%s", t->vocab[tokens[i]], t->vocab[tokens[i + 1]]);
@@ -629,21 +621,44 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
       }
     }
 
+    // if no pair was found, try to find the best triple to merge
     if (best_idx == -1) {
-      break;  // we couldn't find any more pairs to merge, so we're done
+      for (int i = 0; i < (*n_tokens - 2); i++) {
+        // check if we can merge the triple (tokens[i], tokens[i+1],
+        // tokens[i+2])
+        sprintf(str_buffer, "%s%s%s", t->vocab[tokens[i]],
+                t->vocab[tokens[i + 1]], t->vocab[tokens[i + 2]]);
+        int id = str_lookup(str_buffer, t->sorted_vocab, t->vocab_size);
+        if (id != -1 && t->vocab_scores[id] > best_score) {
+          // this merge triple exists in vocab! record its score and position
+          best_score = t->vocab_scores[id];
+          best_id = id;
+          best_idx = i;
+          best_len = 3;
+        }
+      }
     }
 
-    // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
-    tokens[best_idx] = best_id;
-    // delete token at position best_idx+1, shift the entire sequence back 1
-    for (int i = best_idx + 1; i < (*n_tokens - 1); i++) {
-      tokens[i] = tokens[i + 1];
+    if (best_idx == -1) {
+      break;  // we couldn't find any more pairs or triples to merge, so we're
+              // done
     }
-    (*n_tokens)--;  // token length decreased
+
+    // merge the consecutive pair or triple (best_idx, best_idx+1[, best_idx+2])
+    // into new token best_id
+    tokens[best_idx] = best_id;
+    // delete token(s) at position best_idx+1 (and optionally best_idx+2), shift
+    // the entire sequence back
+    for (int i = best_idx + 1; i < (*n_tokens - best_len + 1); i++) {
+      tokens[i] = tokens[i + best_len - 1];
+    }
+    (*n_tokens) -=
+        (best_len -
+         1);  // token length decreased by the number of merged tokens minus one
   }
 
-  // add optional EOS (=2) token, if desired
-  if (eos) tokens[(*n_tokens)++] = 2;
+  // add optional EOS (=128001) token, if desired
+  if (eos) tokens[(*n_tokens)++] = 128001;
 
   free(str_buffer);
 }
@@ -663,8 +678,8 @@ typedef struct {
   float temperature;
   float topp;
   unsigned long long rng_state;
-
 } Sampler;
+
 int sample_argmax(float *probabilities, int n) {
   // return the index that has the highest probability
   int max_i = 0;
@@ -691,7 +706,6 @@ int sample_mult(float *probabilities, int n, float coin) {
   return n - 1;  // in case of rounding errors
 }
 
-// Sort in descending order
 int compare(const void *a, const void *b) {
   ProbIndex *a_ = (ProbIndex *)a;
   ProbIndex *b_ = (ProbIndex *)b;
@@ -832,6 +846,7 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
   int next;  // will store the next token in the sequence
   int token = prompt_tokens[0];  // kick off with the first token in the prompt
   int pos = 0;                   // position in the sequence
+
   while (pos < steps) {
     // forward the transformer to get logits for the next token
     float *logits = forward(transformer, token, pos);
@@ -849,13 +864,9 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
 
     // data-dependent terminating condition: the BOS (=1) token delimits
     // sequences
-    if (next == 1) {
-      break;
-    }
-
+    if ((next == 128001 || next == 128009) && pos > num_prompt_tokens) break;
     // print the token as string, decode it with the Tokenizer object
     char *piece = decode(tokenizer, token, next);
-    // std::cout << static_cast<int>(next) << " ";
     safe_printf(
         piece);  // same as printf("%s", piece), but skips "unsafe" bytes
     fflush(stdout);
@@ -899,19 +910,20 @@ void read_stdin(const char *guide, char *buffer, size_t bufsize) {
 void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
           char *cli_user_prompt, char *cli_system_prompt, int steps) {
   // buffers for reading the system prompt and user prompt from stdin
-  // you'll notice they are soomewhat haphazardly and unsafely set atm
-  char system_prompt[512];
-  char user_prompt[512];
-  char rendered_prompt[1152];
+  // you'll notice they are somewhat haphazardly and unsafely set atm
+  char *system_prompt = (char *)malloc(32768 * sizeof(char));
+  char *user_prompt = (char *)malloc(32768 * sizeof(char));
   int num_prompt_tokens = 0;
-  int *prompt_tokens = (int *)malloc(1152 * sizeof(int));
-  int user_idx;
+  int *prompt_tokens = (int *)malloc(32768 * sizeof(int));
+  int *system_prompt_tokens = (int *)malloc(32768 * sizeof(int));
+  int *user_prompt_tokens = (int *)malloc(32768 * sizeof(int));
+  int user_idx = 0;
 
   // start the main loop
   int8_t user_turn = 1;  // user starts
   int next;              // will store the next token in the sequence
   int token;  // stores the current token to feed into the transformer
-  int prev_token;
+
   int pos = 0;  // position in the sequence
   while (pos < steps) {
     // when it is the user's turn to contribute tokens to the dialog...
@@ -919,34 +931,56 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
       // get the (optional) system prompt at position 0
       if (pos == 0) {
         // at position 0, the user can also contribute a system prompt
+        prompt_tokens[num_prompt_tokens++] = 128000;  // "<|begin_of_text|>"
+        prompt_tokens[num_prompt_tokens++] = 128006;  // "<|start_header_id|>"
+        prompt_tokens[num_prompt_tokens++] = 9125;    // "system"
+        prompt_tokens[num_prompt_tokens++] = 128007;  // "<|end_header_id|>"
+        prompt_tokens[num_prompt_tokens++] = 271;     // "\n\n"
         if (cli_system_prompt == NULL) {
           // system prompt was not passed in, attempt to get it from stdin
-          read_stdin("Enter system prompt (optional): ", system_prompt,
-                     sizeof(system_prompt));
+          read_stdin("Enter system prompt (optional): ", system_prompt, 32768);
         } else {
           // system prompt was passed in, use it
           strcpy(system_prompt, cli_system_prompt);
         }
+        if (system_prompt != NULL) {
+          int num_system_prompt_tokens = 0;
+          encode(tokenizer, system_prompt, 0, 0, system_prompt_tokens,
+                 &num_system_prompt_tokens);
+          for (int i = 0; i < num_system_prompt_tokens; i++) {
+            prompt_tokens[num_prompt_tokens++] = system_prompt_tokens[i];
+          }
+        }
+        prompt_tokens[num_prompt_tokens++] = 128009;  // "<|eot_id|>"
+      } else {
+        num_prompt_tokens = 0;
       }
+      prompt_tokens[num_prompt_tokens++] = 128006;  // "<|start_header_id|>"
+      prompt_tokens[num_prompt_tokens++] = 882;     // "user"
+      prompt_tokens[num_prompt_tokens++] = 128007;  // "<|end_header_id|>"
+      prompt_tokens[num_prompt_tokens++] = 271;     // "\n\n"
       // get the user prompt
       if (pos == 0 && cli_user_prompt != NULL) {
         // user prompt for position 0 was passed in, use it
         strcpy(user_prompt, cli_user_prompt);
       } else {
         // otherwise get user prompt from stdin
-        read_stdin("User: ", user_prompt, sizeof(user_prompt));
+        read_stdin("User (or exit): ", user_prompt, 32768);
+        if (strcmp(user_prompt, "exit") == 0) break;
       }
-      // render user/system prompts into the Llama 2 Chat schema
-      if (pos == 0 && system_prompt[0] != '\0') {
-        char system_template[] = "[INST] <<SYS>>\n%s\n<</SYS>>\n\n%s [/INST]";
-        sprintf(rendered_prompt, system_template, system_prompt, user_prompt);
-      } else {
-        char user_template[] = "[INST] %s [/INST]";
-        sprintf(rendered_prompt, user_template, user_prompt);
+      int num_user_prompt_tokens = 0;
+      // encode the user prompt into tokens
+      encode(tokenizer, user_prompt, 0, 0, user_prompt_tokens,
+             &num_user_prompt_tokens);
+      for (int i = 0; i < num_user_prompt_tokens; i++) {
+        prompt_tokens[num_prompt_tokens++] = user_prompt_tokens[i];
       }
-      // encode the rendered prompt into tokens
-      encode(tokenizer, rendered_prompt, 1, 0, prompt_tokens,
-             &num_prompt_tokens);
+      prompt_tokens[num_prompt_tokens++] = 128009;  // "<|eot_id|>"
+      prompt_tokens[num_prompt_tokens++] = 128006;  // "<|start_header_id|>"
+      prompt_tokens[num_prompt_tokens++] = 78191;   // "assistant"
+      prompt_tokens[num_prompt_tokens++] = 128007;  // "<|end_header_id|>"
+      prompt_tokens[num_prompt_tokens++] = 271;     // "\n\n"
+
       user_idx = 0;  // reset the user index
       user_turn = 0;
       printf("Assistant: ");
@@ -961,8 +995,8 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
       // otherwise use the next token sampled from previous turn
       token = next;
     }
-    // EOS (=2) token ends the Assistant turn
-    if (token == 2) {
+    // EOS (=128009) token ends the Assistant turn
+    if (user_idx >= num_prompt_tokens && (token == 128009 || token == 128001)) {
       user_turn = 1;
     }
 
@@ -971,26 +1005,33 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
     next = sample(sampler, logits);
     pos++;
 
-    if (user_idx >= num_prompt_tokens && next != 2) {
+    if (user_idx >= num_prompt_tokens && next != 128009 && next != 128001 &&
+        next != 128006) {
       // the Assistant is responding, so print its output
       char *piece = decode(tokenizer, token, next);
       safe_printf(
           piece);  // same as printf("%s", piece), but skips "unsafe" bytes
       fflush(stdout);
     }
-    if (next == 2) {
+    if (user_idx >= num_prompt_tokens && next == 128009 || next == 128001) {
       printf("\n");
     }
   }
   printf("\n");
   free(prompt_tokens);
+  free(system_prompt_tokens);
+  free(user_prompt_tokens);
+  free(system_prompt);
+  free(user_prompt);
 }
 
+// ----------------------------------------------------------------------------
+// CLI, include only if not testing
 #if defined(INCLUDE_MAIN)
 
 void error_usage() {
   fprintf(stderr, "Usage:   run <checkpoint> [options]\n");
-  fprintf(stderr, "Example: run model.bin -n 256 -i \"Once upon a time\"\n");
+  fprintf(stderr, "Example: run model.bin -n 4096 -i \"Once upon a time\"\n");
   fprintf(stderr, "Options:\n");
   fprintf(stderr, "  -t <float>  temperature in [0,inf], default 1.0\n");
   fprintf(stderr,
@@ -998,7 +1039,7 @@ void error_usage() {
           "0.9\n");
   fprintf(stderr, "  -s <int>    random seed, default time(NULL)\n");
   fprintf(stderr,
-          "  -n <int>    number of steps to run for, default 256. 0 = "
+          "  -n <int>    number of steps to run for, default 4096. 0 = "
           "max_seq_len\n");
   fprintf(stderr, "  -i <string> input prompt\n");
   fprintf(stderr, "  -z <string> optional path to custom tokenizer\n");
@@ -1015,7 +1056,7 @@ int main(int argc, char *argv[]) {
       1.0f;  // 0.0 = greedy deterministic. 1.0 = original. don't set higher
   float topp =
       0.9f;  // top-p in nucleus sampling. 1.0 = off. 0.9 works well, but slower
-  int steps = 256;                  // number of steps to run for
+  int steps = 4096;                 // number of steps to run for
   char *prompt = NULL;              // prompt string
   unsigned long long rng_seed = 0;  // seed rng with time by default
   const char *mode = "generate";    // generate|chat
@@ -1100,5 +1141,5 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 #endif
-}  // namespace reference_llama2
+}  // namespace reference_llama3
 }

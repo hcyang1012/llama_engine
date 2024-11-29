@@ -15,9 +15,11 @@ class EncodeTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // code here will execute just before the test ensues
-    reference::build_transformer(&ref_transformer_, kChkPointPath.c_str());
-    reference::build_tokenizer(&ref_tokenizer_, kTokenizerBinPath.c_str(),
-                               ref_transformer_.config.vocab_size);
+    reference_llama2::build_transformer(&ref_transformer_,
+                                        kChkPointPath.c_str());
+    reference_llama2::build_tokenizer(&ref_tokenizer_,
+                                      kTokenizerBinPath.c_str(),
+                                      ref_transformer_.config.vocab_size);
 
     transformer_ =
         std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
@@ -30,8 +32,8 @@ class EncodeTest : public ::testing::Test {
     // ok to through exceptions from here if need be
   }
 
-  reference::Transformer ref_transformer_;
-  reference::Tokenizer ref_tokenizer_;
+  reference_llama2::Transformer ref_transformer_;
+  reference_llama2::Tokenizer ref_tokenizer_;
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
@@ -49,8 +51,8 @@ TEST_F(EncodeTest, SampleText) {
   int num_prompt_tokens = 0;
   const size_t kPromptSize = kPrompt.length() + 3;  // +3 for '\0', ?BOS, ?EOS
   int *prompt_tokens = (int *)malloc(kPromptSize * sizeof(int));
-  reference::encode(&ref_tokenizer_, kPrompt.c_str(), 1, 0, prompt_tokens,
-                    &num_prompt_tokens);
+  reference_llama2::encode(&ref_tokenizer_, kPrompt.c_str(), 1, 0,
+                           prompt_tokens, &num_prompt_tokens);
   EXPECT_GE(num_prompt_tokens, 1);
   auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false);
   auto result = encoder.PromptTokens();

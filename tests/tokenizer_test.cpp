@@ -15,9 +15,11 @@ class TokenizerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // code here will execute just before the test ensues
-    reference::build_transformer(&ref_transformer_, kChkPointPath.c_str());
-    reference::build_tokenizer(&ref_tokenizer_, kTokenizerBinPath.c_str(),
-                               ref_transformer_.config.vocab_size);
+    reference_llama2::build_transformer(&ref_transformer_,
+                                        kChkPointPath.c_str());
+    reference_llama2::build_tokenizer(&ref_tokenizer_,
+                                      kTokenizerBinPath.c_str(),
+                                      ref_transformer_.config.vocab_size);
 
     transformer_ =
         std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
@@ -30,8 +32,8 @@ class TokenizerTest : public ::testing::Test {
     // ok to through exceptions from here if need be
   }
 
-  reference::Transformer ref_transformer_;
-  reference::Tokenizer ref_tokenizer_;
+  reference_llama2::Transformer ref_transformer_;
+  reference_llama2::Tokenizer ref_tokenizer_;
 
   std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
@@ -73,8 +75,9 @@ TEST_F(TokenizerTest, VocabTest) {
 
 TEST_F(TokenizerTest, VocabSortTest) {
   const auto& kSortedVocab = tokenizer_->VocabMap();
-  reference::TokenIndex* ref_sorted_vocab = (reference::TokenIndex*)malloc(
-      ref_tokenizer_.vocab_size * sizeof(reference::TokenIndex));
+  reference_llama2::TokenIndex* ref_sorted_vocab =
+      (reference_llama2::TokenIndex*)malloc(
+          ref_tokenizer_.vocab_size * sizeof(reference_llama2::TokenIndex));
 
   for (int i = 0; i < ref_tokenizer_.vocab_size; i++) {
     ref_sorted_vocab[i].str = ref_tokenizer_.vocab[i];
@@ -82,7 +85,7 @@ TEST_F(TokenizerTest, VocabSortTest) {
   }
 
   qsort(ref_sorted_vocab, ref_tokenizer_.vocab_size,
-        sizeof(reference::TokenIndex), reference::compare_tokens);
+        sizeof(reference_llama2::TokenIndex), reference_llama2::compare_tokens);
 
   for (size_t i = 0; i < ref_tokenizer_.vocab_size; i++) {
     EXPECT_EQ(kSortedVocab.at(ref_sorted_vocab[i].str), ref_sorted_vocab[i].id);

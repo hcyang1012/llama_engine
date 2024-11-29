@@ -22,7 +22,7 @@ TEST(OpArgmaxTest, Test1) {
     input_tensor[i] = input[i];
   }
 
-  size_t expected = reference::sample_argmax(input.data(), 10);
+  size_t expected = reference_llama2::sample_argmax(input.data(), 10);
 
   auto op_set = llama::CreateOpSet(device_type);
   auto actual = op_set->ArgMax<float>(input_tensor);

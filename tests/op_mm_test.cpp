@@ -73,8 +73,8 @@ TEST_F(MatMulTest, MatMulTest) {
   std::vector<float> expected_o(n);
   llama::Tensor<float> actual({n}, op_set_->GetDeviceType());
   op_set_->MatMul<float>(*weight_, *input_, actual);
-  reference::matmul(expected_o.data(), input_->GetData(), weight_->GetData(), d,
-                    n);
+  reference_llama2::matmul(expected_o.data(), input_->GetData(),
+                           weight_->GetData(), d, n);
 
   EXPECT_TRUE(
       std::equal(expected_o.begin(), expected_o.end(), actual.GetData()));
@@ -86,8 +86,8 @@ TEST_F(MatMulTest, ForwardTest) {
   const size_t kDim = kConfig.Dim();
   const auto& kWeights = transformer_->GetWeights();
 
-  reference::Transformer ref_transformer;
-  reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
+  reference_llama2::Transformer ref_transformer;
+  reference_llama2::build_transformer(&ref_transformer, kChkPointPath.c_str());
   const auto ref_weights = ref_transformer.weights;
   auto ref_run_state = ref_transformer.state;
 
@@ -104,8 +104,8 @@ TEST_F(MatMulTest, ForwardTest) {
   const auto kKVDim = (kDim * kConfig.NumKVHeads()) / kConfig.NumHeads();
 
   for (size_t layer = 0; layer < kNumOfLayers; layer++) {
-    reference::rmsnorm(ref_run_state.xb, ref_run_state.x,
-                       ref_weights.rms_att_weight + layer * kDim, kDim);
+    reference_llama2::rmsnorm(ref_run_state.xb, ref_run_state.x,
+                              ref_weights.rms_att_weight + layer * kDim, kDim);
 
     op_set_->RmsNorm<float>(transformer_->GetRunState().X(),
                             kWeights.RMSAttnWeight(layer),
@@ -123,8 +123,8 @@ TEST_F(MatMulTest, ForwardTest) {
         kWeights.WQ(layer).ReShape(llama::Shape({kDim, kDim})),
         transformer_->GetRunState().XB(), transformer_->GetRunState().Q());
 
-    reference::matmul(ref_run_state.q, ref_run_state.xb,
-                      ref_weights.wq + layer * kDim * kDim, kDim, kDim);
+    reference_llama2::matmul(ref_run_state.q, ref_run_state.xb,
+                             ref_weights.wq + layer * kDim * kDim, kDim, kDim);
 
     EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
                            transformer_->GetRunState().Q().GetData()));
@@ -134,8 +134,9 @@ TEST_F(MatMulTest, ForwardTest) {
     op_set_->MatMul<float>(
         kWeights.WK(layer).ReShape(llama::Shape({kDim, kKVDim})),
         transformer_->GetRunState().XB(), K);
-    reference::matmul(ref_run_state.k, ref_run_state.xb,
-                      ref_weights.wk + layer * kDim * kKVDim, kDim, kKVDim);
+    reference_llama2::matmul(ref_run_state.k, ref_run_state.xb,
+                             ref_weights.wk + layer * kDim * kKVDim, kDim,
+                             kKVDim);
     EXPECT_TRUE(
         std::equal(ref_run_state.k, ref_run_state.k + kKVDim, K.GetData()));
 
@@ -144,8 +145,9 @@ TEST_F(MatMulTest, ForwardTest) {
     op_set_->MatMul<float>(
         kWeights.WV(layer).ReShape(llama::Shape({kDim, kKVDim})),
         transformer_->GetRunState().XB(), V);
-    reference::matmul(ref_run_state.v, ref_run_state.xb,
-                      ref_weights.wv + layer * kDim * kKVDim, kDim, kKVDim);
+    reference_llama2::matmul(ref_run_state.v, ref_run_state.xb,
+                             ref_weights.wv + layer * kDim * kKVDim, kDim,
+                             kKVDim);
     EXPECT_TRUE(
         std::equal(ref_run_state.v, ref_run_state.v + kKVDim, V.GetData()));
   }

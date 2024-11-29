@@ -34,28 +34,20 @@ else()
     add_compile_options(-g)
 endif()
 
-# Add Build options to select the version of llama: LLAMA2 or LLAMA3
-option(LLAMA_VERSION "Select the version of LLAMA to use" "LLAMA2")
-if (${LLAMA_VERSION} STREQUAL "LLAMA2")
-    add_compile_definitions(USE_LLAMA2)
-elseif (${LLAMA_VERSION} STREQUAL "LLAMA3")
-    add_compile_definitions(USE_LLAMA3)
-else()
-    # Default to LLAMA2
-    add_compile_definitions(USE_LLAMA2)
-    message(WARNING "Invalid value for LLAMA_VERSION. Defaulting to LLAMA2")
-endif()
 
-add_library(llama2_cpp_dummy_lib STATIC ${LLAMA2_LIB_SOURCES})
-target_include_directories(llama2_cpp_dummy_lib PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(llama2_cpp_dummy_lib glog::glog)
 
-add_executable(llama2_cpp_dummy ${CMAKE_SOURCE_DIR}/main.cpp)
-target_include_directories(llama2_cpp_dummy PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(llama2_cpp_dummy llama2_cpp_dummy_lib)
+add_executable(llama2_cpp ${CMAKE_SOURCE_DIR}/llama2.cpp)
+target_compile_definitions(llama2_cpp PUBLIC -DUSE_LLAMA2)
+target_include_directories(llama2_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(llama2_cpp glog::glog)
 
 add_executable(llama2_reference ${CMAKE_SOURCE_DIR}/references/reference_llama2.cpp)
+target_include_directories(llama2_reference PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_definitions(llama2_reference PUBLIC -DINCLUDE_MAIN)
+
+add_executable(llama3_reference ${CMAKE_SOURCE_DIR}/references/reference_llama3.cpp)
+target_include_directories(llama3_reference PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_definitions(llama3_reference PUBLIC -DINCLUDE_MAIN)
 
 
 

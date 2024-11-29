@@ -45,20 +45,21 @@ TEST_F(GenerateTest, Test) {
   // Reference Forward Stage
   float *ref_logits = nullptr;
   {
-    reference::Transformer ref_transformer;
-    reference::build_transformer(&ref_transformer, kChkPointPath.c_str());
+    reference_llama2::Transformer ref_transformer;
+    reference_llama2::build_transformer(&ref_transformer,
+                                        kChkPointPath.c_str());
 
-    reference::Tokenizer ref_tokenizer;
-    reference::build_tokenizer(&ref_tokenizer, kTokenizerBinPath.c_str(),
-                               ref_transformer.config.vocab_size);
+    reference_llama2::Tokenizer ref_tokenizer;
+    reference_llama2::build_tokenizer(&ref_tokenizer, kTokenizerBinPath.c_str(),
+                                      ref_transformer.config.vocab_size);
 
-    reference::Sampler sampler;
-    reference::build_sampler(&sampler, ref_transformer.config.vocab_size,
-                             temperature_, topp_, rng_seed_);
+    reference_llama2::Sampler sampler;
+    reference_llama2::build_sampler(&sampler, ref_transformer.config.vocab_size,
+                                    temperature_, topp_, rng_seed_);
 
     std::cout << "Reference Generation:" << std::endl;
-    reference::generate(&ref_transformer, &ref_tokenizer, &sampler,
-                        kPrompt.c_str(), kSteps);
+    reference_llama2::generate(&ref_transformer, &ref_tokenizer, &sampler,
+                               kPrompt.c_str(), kSteps);
   }
   {
     std::cout << "LLAMA2 Generation:" << std::endl;
