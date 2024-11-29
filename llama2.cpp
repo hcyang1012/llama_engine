@@ -9,9 +9,9 @@
 // Project Headers
 #include <dtypes.h>
 
+#include <llama.hpp>
 #include <op.hpp>
 #include <transformer.hpp>
-
 #if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
 #endif
@@ -107,24 +107,22 @@ int main(int argc, char *argv[]) {
     prompt = const_cast<char *>(kDefaultPrompt.c_str());
   }
 
-  const llama::Transformer<float>::RunConfig run_config = {temperature, topp,
-                                                           rng_seed};
-
-  const llama::DeviceType device_type = llama::DeviceType::CPU;
-  auto op_set = llama::CreateOpSet(device_type);
-  const auto special_tokens = llama::SpecialTokensLlama2();
-  // build the Transformer via the model .bin file
-  llama::Transformer<float> transformer(checkpoint_path, run_config, *op_set,
-                                        special_tokens);
+  const auto kDeviceType = llama::DeviceType::CPU;
+  llama::LlamaModel<float>::LlamaConfig llama2_config = {
+      .checkpoint_path = checkpoint_path,
+      .tokenizer_path = tokenizer_path,
+      .device_type = kDeviceType,
+      .temperature = temperature,
+      .topp = topp,
+      .steps = steps,
+      .rng_seed = rng_seed};
+  llama::Llama2<float> llama2(llama2_config);
 
   if (steps == 0) {
-    steps = transformer.GetConfig().SeqLen();
+    steps = llama2.GetTransformer().GetConfig().SeqLen();
   }
 
-  steps = std::min(steps, transformer.GetConfig().SeqLen());
-
-  llama::Tokenizer<float> tokenizer(tokenizer_path,
-                                    transformer.GetConfig().VocabSize());
+  steps = std::min(steps, llama2.GetTransformer().GetConfig().SeqLen());
 
   if (mode == "generate") {
     {
@@ -148,7 +146,8 @@ int main(int argc, char *argv[]) {
     std::cout << std::endl;
     {
       std::cout << "My Generation:" << std::endl;
-      transformer.Generate(tokenizer, prompt, steps);
+
+      llama2.Generate(prompt, steps);
     }
 
   } else if (mode == "chat") {

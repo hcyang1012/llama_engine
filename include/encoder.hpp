@@ -18,7 +18,7 @@
 #include <tokenizer.hpp>
 
 // Third-party Headers
-
+#include <glog/logging.h>
 namespace llama {
 
 template <typename T>
