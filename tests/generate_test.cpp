@@ -15,7 +15,7 @@ class GenerateTest : public ::testing::Test {
     llama::Transformer<float>::RunConfig run_config = {temperature_, topp_,
                                                        rng_seed_};
     transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, run_config, *op_set_, llama::SpecialTokensLlama2());
+        kChkPointPath, run_config, *op_set_, *special_tokens_);
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -32,6 +32,8 @@ class GenerateTest : public ::testing::Test {
   std::unique_ptr<llama::Tokenizer<float>> tokenizer_;
   std::unique_ptr<llama::OpSet> op_set_ =
       llama::CreateOpSet(llama::DeviceType::CPU);
+  std::unique_ptr<llama::SpecialTokens> special_tokens_ =
+      std::make_unique<llama::SpecialTokensLlama2>();
 
   // float temperature_ = 0.8f;
   float temperature_ = 0.0f;
