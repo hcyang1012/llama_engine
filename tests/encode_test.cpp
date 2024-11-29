@@ -21,8 +21,8 @@ class EncodeTest : public ::testing::Test {
                                       kTokenizerBinPath.c_str(),
                                       ref_transformer_.config.vocab_size);
 
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -54,7 +54,8 @@ TEST_F(EncodeTest, SampleText) {
   reference_llama2::encode(&ref_tokenizer_, kPrompt.c_str(), 1, 0,
                            prompt_tokens, &num_prompt_tokens);
   EXPECT_GE(num_prompt_tokens, 1);
-  auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false);
+  auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false,
+                                       llama::SpecialTokensLlama2());
   auto result = encoder.PromptTokens();
   EXPECT_TRUE(std::equal(prompt_tokens, prompt_tokens + num_prompt_tokens,
                          result.data()));

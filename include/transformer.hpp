@@ -44,16 +44,19 @@ class Transformer {
   };
 
   Transformer(const std::string &ckpt_file, const RunConfig &run_config,
-              OpSet &op_set)
-      : run_config_(run_config), op_set_(op_set) {
+              OpSet &op_set, const SpecialTokens &special_tokens)
+      : run_config_(run_config),
+        op_set_(op_set),
+        special_tokens_(special_tokens) {
     load_checkpoint(ckpt_file);
     sampler_ = std::make_unique<Sampler>(
         config_->VocabSize(), run_config_.temperature, run_config_.topp,
         run_config_.rng_seed, op_set_);
   }
 
-  Transformer(const std::string &ckpt_file, OpSet &op_set)
-      : Transformer(ckpt_file, run_config_, op_set) {}
+  Transformer(const std::string &ckpt_file, OpSet &op_set,
+              const SpecialTokens &special_tokens)
+      : Transformer(ckpt_file, run_config_, op_set, special_tokens) {}
   ~Transformer() {}
 
   const auto &GetConfig() const { return *config_; }
@@ -65,7 +68,8 @@ class Transformer {
   std::string Generate(const Tokenizer<T> &tokenizer, const std::string &prompt,
                        const size_t steps, const bool print = true) {
     std::stringstream ss;
-    const auto encoder = Encoder<T>(tokenizer, prompt, true, false);
+    const auto encoder =
+        Encoder<T>(tokenizer, prompt, true, false, special_tokens_);
     const auto &prompt_tokens = encoder.PromptTokens();
 
     auto token = prompt_tokens[0];
@@ -84,11 +88,11 @@ class Transformer {
       }
       pos++;
 
-      if (next == SpecialTokens::BOS_01) {
+      if (next == special_tokens_.GetToken(SpecialTokens::Idx::IDX_BOS_01)) {
         break;
       }
 
-      auto piece = Decoder<T>::Decode(tokenizer, token, next);
+      auto piece = Decoder<T>::Decode(tokenizer, token, next, special_tokens_);
       safe_print(piece, ss, print);
       token = next;
       // ignore the first token for time calculation to ignore the warm-up time
@@ -278,6 +282,7 @@ class Transformer {
   T *mapped_file_;     // pointer to the memory mapped file
 
   OpSet &op_set_;
+  const SpecialTokens &special_tokens_;
 };
 
 }  // namespace llama

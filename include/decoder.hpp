@@ -23,7 +23,8 @@ template <typename T>
 class Decoder {
  public:
   static std::string Decode(const Tokenizer<T>& tokenizer, const int prev_token,
-                            const int token) {
+                            const int token,
+                            const SpecialTokens& special_tokens) {
     std::stringstream ss;
 
     auto str_buffer = tokenizer.Vocab()[token];
@@ -31,7 +32,8 @@ class Decoder {
 
     // following BOS (1) token, sentencepiece decoder strips any leading
     // whitespace
-    if (prev_token == SpecialTokens::BOS_01 && piece[0] == ' ') {
+    if (prev_token == special_tokens.GetToken(SpecialTokens::Idx::IDX_BOS_01) &&
+        piece[0] == ' ') {
       piece++;
     }
 

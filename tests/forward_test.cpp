@@ -12,8 +12,8 @@
 class ForwardTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -68,7 +68,8 @@ TEST_F(ForwardTest, Test) {
 
   // Forward Stage
   {
-    auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false);
+    auto encoder = llama::Encoder<float>(*tokenizer_, kPrompt, true, false,
+                                         llama::SpecialTokensLlama2());
     auto result = encoder.PromptTokens();
     auto logits = transformer_->Forward(result[0], 0);
 

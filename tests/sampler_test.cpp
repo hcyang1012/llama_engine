@@ -18,8 +18,8 @@ class SamplerTest : public ::testing::Test {
   void SetUp() override {
     // code here will execute just before the test ensues
     build_transformer(&ref_transformer_, kChkPointPath.c_str());
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
 
     build_sampler(&ref_sampler_, ref_transformer_.config.vocab_size,
                   kTemperature, kTopP, kRngSeed);

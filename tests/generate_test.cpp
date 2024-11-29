@@ -15,7 +15,7 @@ class GenerateTest : public ::testing::Test {
     llama::Transformer<float>::RunConfig run_config = {temperature_, topp_,
                                                        rng_seed_};
     transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, run_config, *op_set_);
+        kChkPointPath, run_config, *op_set_, llama::SpecialTokensLlama2());
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }

@@ -14,8 +14,8 @@ class LoaderTest : public ::testing::Test {
     // code here will execute just before the test ensues
     reference_llama2::build_transformer(&ref_transformer_,
                                         kCheckPointPath.c_str());
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kCheckPointPath, *op_set_);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kCheckPointPath, *op_set_, llama::SpecialTokensLlama2());
   }
 
   void TearDown() override {
@@ -54,7 +54,8 @@ int vocab_size;  // vocabulary size, usually 256 (byte-level)
 int seq_len;     // max sequence length
    */
   auto op_set = llama::CreateOpSet(kDeviceType);
-  llama::Transformer<float> transformer(kCheckPointPath, *op_set);
+  llama::Transformer<float> transformer(kCheckPointPath, *op_set,
+                                        llama::SpecialTokensLlama2());
 
   const auto& config = transformer_->GetConfig();
 

@@ -25,9 +25,10 @@ template <typename T>
 class Encoder {
  public:
   Encoder(const Tokenizer<T>& tokenizer, const std::string prompt,
-          const bool start_with_bos, const bool end_with_eos)
+          const bool start_with_bos, const bool end_with_eos,
+          const SpecialTokens& special_tokens)
       : tokenizer_(tokenizer), prompt_(prompt) {
-    encode(prompt, start_with_bos, end_with_eos);
+    encode(prompt, start_with_bos, end_with_eos, special_tokens);
   }
 
   const std::vector<int>& PromptTokens() const { return prompt_tokens_vec_; }
@@ -42,11 +43,12 @@ class Encoder {
   std::vector<int> prompt_tokens_vec_;
 
   void encode(const std::string& prompt, const bool start_with_bos,
-              const bool end_with_eos) {
+              const bool end_with_eos, const SpecialTokens& special_tokens) {
     size_t n_tokens = 0;
 
     if (start_with_bos) {
-      prompt_tokens_.push_back(SpecialTokens::BOS_01);
+      prompt_tokens_.push_back(
+          special_tokens.GetToken(SpecialTokens::IDX_BOS_01));
     }
 
     // Add a dummy prefix token as default in this implementation
@@ -60,7 +62,8 @@ class Encoder {
     merge();
 
     if (end_with_eos) {
-      prompt_tokens_.push_back(SpecialTokens::EOS_02);
+      prompt_tokens_.push_back(
+          special_tokens.GetToken(SpecialTokens::IDX_EOS_02));
     }
 
     prompt_tokens_vec_.assign(prompt_tokens_.begin(), prompt_tokens_.end());
