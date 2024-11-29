@@ -116,35 +116,39 @@ template <typename T>
 class RoPE {
  public:
   static void Compute(const size_t position, const Config& config,
-                      Tensor<float>& Q, Tensor<float>& K) {
+                      Tensor<float>& Q, Tensor<float>& K, const size_t freq) {
     DCHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    Compute(position, config, Q.GetData(), K.GetData());
+    Compute(position, config, Q.GetData(), K.GetData(), freq);
   }
 
  private:
   static void Compute(const size_t position, const Config& config, float* Q,
-                      float* K) {
-    const size_t dim = config.Dim();
-    const size_t kv_dim =
-        (config.Dim() * config.NumKVHeads()) / config.NumHeads();
-    const size_t head_size = dim / config.NumHeads();
-    for (size_t i = 0; i < dim; i += 2) {
-      size_t head_dim = i % head_size;
-      float theta =
-          1.0f / powf(10000.0f, head_dim / static_cast<float>(head_size));
-      float val = position * theta;
-      float fcr = cosf(val);
-      float fci = sinf(val);
-      size_t rotn =
-          i < kv_dim ? 2 : 1;  // how many vectors? 2 = q & k, 1 = q only
-      for (size_t v = 0; v < rotn; v++) {
-        float* vec = v == 0 ? Q : K;
-        float v0 = vec[i];
-        float v1 = vec[i + 1];
-        vec[i] = v0 * fcr - v1 * fci;
-        vec[i + 1] = v0 * fci + v1 * fcr;
+                      float* K, const float freq) {
+    const size_t kDim = config.Dim();
+    const size_t kNumOfHeads = config.NumHeads();
+    const size_t kKVDim = config.KVHeadDim();
+    const size_t kHeadDim = config.HeadDim();
+    const size_t kNumKVHeads = config.NumKVHeads();
+    for (int i = 0; i < kNumOfHeads; i++) {
+      for (int j = 0; j < kHeadDim; j += 2) {
+        float freq = 1.0f / powf(10000.0f, (float)j / (float)kHeadDim);
+        float val = position * freq;
+        float fcr = cosf(val);
+        float fci = sinf(val);
+
+        const size_t idx = i * kHeadDim + j;
+        float q0 = Q[idx];
+        float q1 = Q[idx + 1];
+        Q[idx] = q0 * fcr - q1 * fci;
+        Q[idx + 1] = q0 * fci + q1 * fcr;
+        if (i < kNumKVHeads) {
+          float k0 = K[idx];
+          float k1 = K[idx + 1];
+          K[idx] = k0 * fcr - k1 * fci;
+          K[idx + 1] = k0 * fci + k1 * fcr;
+        }
       }
     }
   }

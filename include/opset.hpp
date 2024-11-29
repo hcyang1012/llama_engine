@@ -57,11 +57,11 @@ class OpSet {
 
   template <typename T>
   void RoPE(const size_t position, const Config& config, Tensor<float>& Q,
-            Tensor<float>& K) {
+            Tensor<float>& K, const float freq = 10000.0f) {
     CHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    RoPEImpl(position, config, &Q, &K, typeid(T));
+    RoPEImpl(position, config, &Q, &K, typeid(T), freq);
   }
 
   template <typename T>
@@ -140,7 +140,8 @@ class OpSet {
                           const std::type_info& type) = 0;
 
   virtual void RoPEImpl(const size_t position, const Config& config, void* Q,
-                        void* K, const std::type_info& type) = 0;
+                        void* K, const std::type_info& type,
+                        const float freq) = 0;
 
   virtual void SoftMaxImpl(const void* input, void* output,
                            const std::type_info& type) = 0;
