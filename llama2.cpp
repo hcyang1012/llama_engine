@@ -112,8 +112,10 @@ int main(int argc, char *argv[]) {
 
   const llama::DeviceType device_type = llama::DeviceType::CPU;
   auto op_set = llama::CreateOpSet(device_type);
+  const auto special_tokens = llama::SpecialTokensLlama2();
   // build the Transformer via the model .bin file
-  llama::Transformer<float> transformer(checkpoint_path, run_config, *op_set);
+  llama::Transformer<float> transformer(checkpoint_path, run_config, *op_set,
+                                        special_tokens);
 
   if (steps == 0) {
     steps = transformer.GetConfig().SeqLen();

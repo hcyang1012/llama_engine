@@ -30,8 +30,8 @@ class AttentionTest : public ::testing::Test {
       (*weight_)[i] = dis(gen);
     }
 
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
@@ -67,7 +67,8 @@ TEST_F(AttentionTest, ForwardTest) {
   const std::string kPrompt = "Who are you?";
 
   const size_t kPos = 0;  // First position
-  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false);
+  llama::Encoder<float> encoder(*tokenizer_, kPrompt, true, false,
+                                llama::SpecialTokensLlama2());
   auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
   std::copy(content_row, content_row + kDim,
             transformer_->GetRunState().X().GetData());

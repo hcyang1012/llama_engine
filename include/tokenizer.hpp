@@ -24,11 +24,49 @@
 
 namespace llama {
 
-enum SpecialTokens : int {
-  UNK_00 = 0,
-  BOS_01 = 1,
-  EOS_02 = 2,
-  NUM_SPECIAL_TOKENS = 3
+class SpecialTokens {
+ public:
+  enum Idx : int {
+    IDX_UNK_00 = 0,
+    IDX_BOS_01 = 1,
+    IDX_EOS_02 = 2,
+    NUM_SPECIAL_TOKENS = 3
+  };
+  virtual size_t GetToken(const Idx idx) const = 0;
+
+ private:
+};
+
+class SpecialTokensLlama2 : public SpecialTokens {
+ public:
+  size_t GetToken(const Idx idx) const override {
+    switch (idx) {
+      case Idx::IDX_UNK_00:
+        return 0;
+      case Idx::IDX_BOS_01:
+        return 1;
+      case Idx::IDX_EOS_02:
+        return 2;
+      default:
+        throw std::runtime_error("Invalid special token index.");
+    }
+  }
+};
+
+class SpeicalTokensLlama3 : public SpecialTokens {
+ public:
+  size_t GetToken(const Idx idx) const override {
+    switch (idx) {
+      case Idx::IDX_UNK_00:
+        return 0;
+      case Idx::IDX_BOS_01:
+        return 128000;
+      case Idx::IDX_EOS_02:
+        return 128001;
+      default:
+        throw std::runtime_error("Invalid special token index.");
+    }
+  }
 };
 
 template <typename T>

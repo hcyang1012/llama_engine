@@ -21,8 +21,8 @@ class TokenizerTest : public ::testing::Test {
                                       kTokenizerBinPath.c_str(),
                                       ref_transformer_.config.vocab_size);
 
-    transformer_ =
-        std::make_unique<llama::Transformer<float>>(kChkPointPath, *op_set_);
+    transformer_ = std::make_unique<llama::Transformer<float>>(
+        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
     tokenizer_ = std::make_unique<llama::Tokenizer<float>>(
         kTokenizerBinPath, transformer_->GetConfig().VocabSize());
   }
