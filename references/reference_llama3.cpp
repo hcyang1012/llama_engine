@@ -1,3 +1,8 @@
+/**
+ * This is a copy of llama3.c code (https://github.com/jameswdelancey/llama3.c)
+ * with some modifications to make it work with the C++ code.
+ */
+
 /* Inference for Llama-3 Transformer model in pure C */
 
 #include <ctype.h>
@@ -13,6 +18,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
+#include <fstream>
+#include <iostream>
 extern "C" {
 namespace reference_llama3 {
 // ----------------------------------------------------------------------------
@@ -148,7 +155,7 @@ void memory_map_weights(TransformerWeights *w, Config *p, float *ptr,
   w->wcls = shared_weights ? w->token_embedding_table : ptr;
 }
 
-void read_checkpoint(char *checkpoint, Config *config,
+void read_checkpoint(const char *checkpoint, Config *config,
                      TransformerWeights *weights, int *fd, float **data,
                      ssize_t *file_size) {
   FILE *file = fopen(checkpoint, "rb");
@@ -187,7 +194,7 @@ void read_checkpoint(char *checkpoint, Config *config,
   memory_map_weights(weights, config, weights_ptr, shared_weights);
 }
 
-void build_transformer(Transformer *t, char *checkpoint_path) {
+void build_transformer(Transformer *t, const char *checkpoint_path) {
   // read in the Config and the Weights from the checkpoint
   read_checkpoint(checkpoint_path, &t->config, &t->weights, &t->fd, &t->data,
                   &t->file_size);
@@ -210,7 +217,7 @@ void free_transformer(Transformer *t) {
 // ----------------------------------------------------------------------------
 // neural net blocks; the dynamics of the Transformer
 
-void rmsnorm(float *o, float *x, float *weight, int size) {
+void rmsnorm(float *o, const float *x, const float *weight, const int size) {
   // calculate sum of squares
   float ss = 0.0f;
   for (int j = 0; j < size; j++) {
@@ -354,7 +361,6 @@ float *forward(Transformer *transformer, int token, int pos) {
         }
       }
     }
-
     // final matmul to get the output of the attention
     matmul(s->xb2, s->xb, w->wo + l * dim * dim, dim, dim);
 
@@ -402,7 +408,7 @@ float *forward(Transformer *transformer, int token, int pos) {
 // The Byte Pair Encoding (BPE) Tokenizer that translates strings <-> tokens
 
 typedef struct {
-  char *str;
+  const char *str;
   int id;
 } TokenIndex;
 
@@ -430,6 +436,7 @@ void build_tokenizer(Tokenizer *t, const char *tokenizer_path, int vocab_size) {
     t->byte_pieces[i * 2] = (unsigned char)i;
     t->byte_pieces[i * 2 + 1] = '\0';
   }
+
   // read in the file
   FILE *file = fopen(tokenizer_path, "rb");
   if (!file) {
@@ -471,7 +478,11 @@ void free_tokenizer(Tokenizer *t) {
 
 char *decode(Tokenizer *t, int prev_token, int token) {
   char *piece = t->vocab[token];
-
+  // following BOS (1) token, sentencepiece decoder strips any leading
+  // whitespace (see PR #89)
+  if (prev_token == 1 && piece[0] == ' ') {
+    piece++;
+  }
   // careful, some tokens designate raw bytes, and look like e.g. '<0x01>'
   // parse this and convert and return the actual byte
   unsigned char byte_val;
@@ -500,12 +511,14 @@ void safe_printf(char *piece) {
   printf("%s", piece);
 }
 
-int str_lookup(char *str, TokenIndex *sorted_vocab, int vocab_size) {
+int str_lookup(const char *str, const TokenIndex *sorted_vocab,
+               int vocab_size) {
   // efficiently find the perfect match for str in vocab, return its index or -1
   // if not found
-  TokenIndex tok = {.str = str};  // acts as the key to search for
-  TokenIndex *res = (TokenIndex *)bsearch(&tok, sorted_vocab, vocab_size,
-                                          sizeof(TokenIndex), compare_tokens);
+  const TokenIndex tok = {.str = str};  // acts as the key to search for
+  TokenIndex *res =
+      (TokenIndex *)bsearch((const void *)&tok, (const void *)sorted_vocab,
+                            vocab_size, sizeof(TokenIndex), compare_tokens);
   return res != NULL ? res->id : -1;
 }
 
@@ -547,6 +560,11 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
   // TODO: pretty sure this isn't correct in the general case but I don't have
   // the energy to read more of the sentencepiece code to figure out what it's
   // doing
+  if (text[0] != '\0') {
+    const char *tmp = " ";
+    int dummy_prefix = str_lookup(tmp, t->sorted_vocab, t->vocab_size);
+    tokens[(*n_tokens)++] = dummy_prefix;
+  }
 
   // Okay UTF-8 time. This will get messy. Here is the reference from Wikipedia:
   // Code point ↔ UTF-8 conversion
@@ -559,10 +577,10 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
   // process the raw (UTF-8) byte sequence of the input string
   for (const char *c = text; *c != '\0'; c++) {
     // reset buffer if the current byte is ASCII or a leading byte
-    // 0xC0 is 11000000, so (*c & 0xC0) keeps the first 2 bits and zeros the
-    // rest 0x80 is 10000000 in UTF-8, all continuation bytes start with "10" in
-    // first two bits so in English this is: "if this byte is not a continuation
-    // byte"
+    // 0xC0 is 1100_0000, so (*c & 0xC0) keeps the first 2 bits and zeros the
+    // rest 0x80 is 1000_0000 in UTF-8, all continuation bytes start with "10"
+    // in first two bits so in English this is: "if this byte is not a
+    // continuation byte"
     if ((*c & 0xC0) != 0x80) {
       // this byte must be either a leading byte (11...) or an ASCII char
       // (0x...)
@@ -678,8 +696,8 @@ typedef struct {
   float temperature;
   float topp;
   unsigned long long rng_state;
-} Sampler;
 
+} Sampler;
 int sample_argmax(float *probabilities, int n) {
   // return the index that has the highest probability
   int max_i = 0;
@@ -706,6 +724,7 @@ int sample_mult(float *probabilities, int n, float coin) {
   return n - 1;  // in case of rounding errors
 }
 
+// Sort in descending order
 int compare(const void *a, const void *b) {
   ProbIndex *a_ = (ProbIndex *)a;
   ProbIndex *b_ = (ProbIndex *)b;
@@ -846,7 +865,6 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
   int next;  // will store the next token in the sequence
   int token = prompt_tokens[0];  // kick off with the first token in the prompt
   int pos = 0;                   // position in the sequence
-
   while (pos < steps) {
     // forward the transformer to get logits for the next token
     float *logits = forward(transformer, token, pos);
