@@ -612,13 +612,16 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
     str_len = 0;  // protect against a sequence of stray UTF8 continuation bytes
   }
 
-  // merge the best consecutive pair each iteration, according the scores in
-  // vocab_scores
+  // merge the best consecutive pair or triple each iteration, according to the
+  // scores in vocab_scores
   while (1) {
     float best_score = -1e10;
     int best_id = -1;
     int best_idx = -1;
+    int best_len =
+        2;  // length of the best merge sequence (2 for pair, 3 for triple)
 
+    // first, try to find the best pair to merge
     for (int i = 0; i < (*n_tokens - 1); i++) {
       // check if we can merge the pair (tokens[i], tokens[i+1])
       sprintf(str_buffer, "%s%s", t->vocab[tokens[i]], t->vocab[tokens[i + 1]]);
@@ -631,17 +634,40 @@ void encode(Tokenizer *t, const char *text, int8_t bos, int8_t eos, int *tokens,
       }
     }
 
+    // if no pair was found, try to find the best triple to merge
     if (best_idx == -1) {
-      break;  // we couldn't find any more pairs to merge, so we're done
+      for (int i = 0; i < (*n_tokens - 2); i++) {
+        // check if we can merge the triple (tokens[i], tokens[i+1],
+        // tokens[i+2])
+        sprintf(str_buffer, "%s%s%s", t->vocab[tokens[i]],
+                t->vocab[tokens[i + 1]], t->vocab[tokens[i + 2]]);
+        int id = str_lookup(str_buffer, t->sorted_vocab, t->vocab_size);
+        if (id != -1 && t->vocab_scores[id] > best_score) {
+          // this merge triple exists in vocab! record its score and position
+          best_score = t->vocab_scores[id];
+          best_id = id;
+          best_idx = i;
+          best_len = 3;
+        }
+      }
     }
 
-    // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
-    tokens[best_idx] = best_id;
-    // delete token at position best_idx+1, shift the entire sequence back 1
-    for (int i = best_idx + 1; i < (*n_tokens - 1); i++) {
-      tokens[i] = tokens[i + 1];
+    if (best_idx == -1) {
+      break;  // we couldn't find any more pairs or triples to merge, so we're
+              // done
     }
-    (*n_tokens)--;  // token length decreased
+
+    // merge the consecutive pair or triple (best_idx, best_idx+1[, best_idx+2])
+    // into new token best_id
+    tokens[best_idx] = best_id;
+    // delete token(s) at position best_idx+1 (and optionally best_idx+2), shift
+    // the entire sequence back
+    for (int i = best_idx + 1; i < (*n_tokens - best_len + 1); i++) {
+      tokens[i] = tokens[i + best_len - 1];
+    }
+    (*n_tokens) -=
+        (best_len -
+         1);  // token length decreased by the number of merged tokens minus one
   }
 
   // add optional EOS (=2) token, if desired

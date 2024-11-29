@@ -130,36 +130,54 @@ class Encoder {
     // in vocab_scores
     while (true) {
       float best_score = kEpsilon;
+
       std::list<int>::iterator best_it = prompt_tokens_.end();
 
-      auto before_last = prompt_tokens_.end();
-      before_last--;
-      for (auto it = prompt_tokens_.begin(); it != before_last; ++it) {
-        std::stringstream ss;
-        auto next = it;
-        next = (++next);
-        ss << tokenizer_.Vocab()[*it] << tokenizer_.Vocab()[*(next)];
-        try {
-          const auto kId = tokenizer_.VocabMap().at(ss.str());
-          if (tokenizer_.VocabScores()[kId] > best_score) {
-            best_score = tokenizer_.VocabScores()[kId];
-            best_it = it;
-          }
-        } catch (const std::out_of_range& e) {
-          // Do nothing
+      auto try_merge = [&](const size_t merge_count) {
+        DCHECK_LE(merge_count, 3);
+        DCHECK_GE(merge_count, 2);
+        auto end = prompt_tokens_.end();
+        for (size_t decrease = 0; decrease < (merge_count - 1); ++decrease) {
+          end--;
         }
-      }
 
+        for (auto it = prompt_tokens_.begin(); it != end; ++it) {
+          std::stringstream ss;
+          auto next = it;
+          for (size_t i = 0; i < merge_count; ++i) {
+            ss << tokenizer_.Vocab()[*next];
+            next = (++next);
+          }
+          try {
+            const auto kId = tokenizer_.VocabMap().at(ss.str());
+            if (tokenizer_.VocabScores()[kId] > best_score) {
+              best_score = tokenizer_.VocabScores()[kId];
+              best_it = it;
+            }
+          } catch (const std::out_of_range& e) {
+            // Do nothing
+          }
+        }
+      };
+      size_t merged_count = 2;
+      try_merge(2);
       if (best_it == prompt_tokens_.end()) {
-        break;
+        try_merge(3);
+        if (best_it == prompt_tokens_.end()) {
+          break;
+        };
+        merged_count = 3;
       }
 
-      // Merge the consecutive pair (best_idx, best_idx+1) into new token
+      // Merge the consecutive pair (best_idx, best_idx+) in case of a pair or
+      // triple (best_idx, best_idx+1, best_idx+2) into new token best_id
       auto next = best_it;
-      next = (++next);
-      *best_it = tokenizer_.VocabMap().at(tokenizer_.Vocab()[*best_it] +
-                                          tokenizer_.Vocab()[*next]);
-      prompt_tokens_.erase(next);
+      for (size_t i = 0; i < (merged_count - 1); ++i) {
+        next = (++next);
+        *best_it = tokenizer_.VocabMap().at(tokenizer_.Vocab()[*best_it] +
+                                            tokenizer_.Vocab()[*next]);
+        prompt_tokens_.erase(next);
+      }
     }
   }
 };
