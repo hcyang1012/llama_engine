@@ -115,17 +115,17 @@ class MatMul {
 template <typename T>
 class RoPE {
  public:
-  static void Compute(const size_t position, const Config& config,
-                      Tensor<float>& Q, Tensor<float>& K, const size_t freq) {
+  static void Compute(const size_t position, const TransformerConfig& config,
+                      Tensor<float>& Q, Tensor<float>& K) {
     DCHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    Compute(position, config, Q.GetData(), K.GetData(), freq);
+    Compute(position, config, Q.GetData(), K.GetData());
   }
 
  private:
-  static void Compute(const size_t position, const Config& config, float* Q,
-                      float* K, const float freq) {
+  static void Compute(const size_t position, const TransformerConfig& config,
+                      float* Q, float* K) {
     const size_t kDim = config.Dim();
     const size_t kNumOfHeads = config.NumHeads();
     const size_t kKVDim = config.KVHeadDim();
@@ -133,7 +133,7 @@ class RoPE {
     const size_t kNumKVHeads = config.NumKVHeads();
     for (int i = 0; i < kNumOfHeads; i++) {
       for (int j = 0; j < kHeadDim; j += 2) {
-        float freq = 1.0f / powf(10000.0f, (float)j / (float)kHeadDim);
+        float freq = 1.0f / powf(config.Freq(), (float)j / (float)kHeadDim);
         float val = position * freq;
         float fcr = cosf(val);
         float fci = sinf(val);
@@ -211,7 +211,7 @@ class Attention {
    * @param output {kPerHeadDim}
    */
   static void Compute(const Tensor<T>& Q, const Tensor<T>& K,
-                      const Tensor<T>& V, const Config& config,
+                      const Tensor<T>& V, const TransformerConfig& config,
                       const size_t pos, const size_t header_idx,
                       Tensor<T>& output) {
     const size_t kPerHeadDim = config.Dim() / config.NumHeads();

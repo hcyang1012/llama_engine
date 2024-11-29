@@ -12,9 +12,8 @@
 #include <llama.hpp>
 #include <op.hpp>
 #include <transformer.hpp>
-#if defined(USE_LLAMA2)
-#include "references/reference_llama2.cpp"
-#endif
+
+#include "references/reference_llama3.cpp"
 // Third-party Headers
 
 void error_usage(const std::string &program_name) {
@@ -30,14 +29,14 @@ void error_usage(const std::string &program_name) {
   std::cerr << "  -m <mode>           Set the mode (default: generate)\n";
   std::cerr << "  -y <system_prompt>  Set the system prompt\n";
   std::cerr << "  -z <tokenizer_path> Set the tokenizer path (default: "
-               "tokenizer.bin)\n";
+               "tokenizer_llama3.bin)\n";
   std::exit(1);
 }
 
 int main(int argc, char *argv[]) {
   // default parameters
   std::string checkpoint_path;
-  std::string tokenizer_path("tokenizer.bin");
+  std::string tokenizer_path("tokenizer_llama3.bin");
   float temperature =
       1.0f;  // 0.0 = greedy deterministic. 1.0 = original. don't set higher
   float topp =
@@ -108,34 +107,34 @@ int main(int argc, char *argv[]) {
   }
 
   const auto kDeviceType = llama::DeviceType::CPU;
-  const llama::LlamaConfig llama2_config = {.checkpoint_path = checkpoint_path,
+  const llama::LlamaConfig llama3_config = {.checkpoint_path = checkpoint_path,
                                             .tokenizer_path = tokenizer_path,
                                             .device_type = kDeviceType};
-  llama::Llama2<float> llama2(llama2_config);
+  llama::Llama3<float> llama3(llama3_config);
 
   if (steps == 0) {
-    steps = llama2.GetTransformer().GetConfig().SeqLen();
+    steps = llama3.GetTransformer().GetConfig().SeqLen();
   }
 
-  steps = std::min(steps, llama2.GetTransformer().GetConfig().SeqLen());
+  steps = std::min(steps, llama3.GetTransformer().GetConfig().SeqLen());
 
   if (mode == "generate") {
     {
-      reference_llama2::Transformer ref_transformer;
-      reference_llama2::build_transformer(&ref_transformer,
+      reference_llama3::Transformer ref_transformer;
+      reference_llama3::build_transformer(&ref_transformer,
                                           checkpoint_path.c_str());
 
-      reference_llama2::Tokenizer ref_tokenizer;
-      reference_llama2::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
+      reference_llama3::Tokenizer ref_tokenizer;
+      reference_llama3::build_tokenizer(&ref_tokenizer, tokenizer_path.c_str(),
                                         ref_transformer.config.vocab_size);
 
-      reference_llama2::Sampler sampler;
-      reference_llama2::build_sampler(&sampler,
+      reference_llama3::Sampler sampler;
+      reference_llama3::build_sampler(&sampler,
                                       ref_transformer.config.vocab_size,
                                       temperature, topp, rng_seed);
 
       std::cout << "Reference Generation:" << std::endl;
-      reference_llama2::generate(&ref_transformer, &ref_tokenizer, &sampler,
+      reference_llama3::generate(&ref_transformer, &ref_tokenizer, &sampler,
                                  prompt, steps);
     }
     std::cout << std::endl;
@@ -143,7 +142,7 @@ int main(int argc, char *argv[]) {
       std::cout << "My Generation:" << std::endl;
       const llama::RunConfig run_config = {
           .temperature = temperature, .topp = topp, .rng_seed = rng_seed};
-      llama2.Generate(prompt, steps, run_config);
+      llama3.Generate(prompt, steps, run_config);
     }
 
   } else if (mode == "chat") {

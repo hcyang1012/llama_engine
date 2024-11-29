@@ -56,12 +56,12 @@ class OpSet {
   }
 
   template <typename T>
-  void RoPE(const size_t position, const Config& config, Tensor<float>& Q,
-            Tensor<float>& K, const float freq = 10000.0f) {
+  void RoPE(const size_t position, const TransformerConfig& config,
+            Tensor<float>& Q, Tensor<float>& K) {
     CHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    RoPEImpl(position, config, &Q, &K, typeid(T), freq);
+    RoPEImpl(position, config, &Q, &K, typeid(T));
   }
 
   template <typename T>
@@ -79,7 +79,7 @@ class OpSet {
 
   template <typename T>
   void Attention(const Tensor<T>& Q, const Tensor<T>& K, const Tensor<T>& V,
-                 const Config& config, const size_t pos,
+                 const TransformerConfig& config, const size_t pos,
                  const size_t header_idx, Tensor<T>& output) {
     const size_t kPerHeadDim = config.Dim() / config.NumHeads();
     const size_t kKVHeadDim =
@@ -139,15 +139,14 @@ class OpSet {
   virtual void MatMulImpl(const void* weight, const void* input, void* out,
                           const std::type_info& type) = 0;
 
-  virtual void RoPEImpl(const size_t position, const Config& config, void* Q,
-                        void* K, const std::type_info& type,
-                        const float freq) = 0;
+  virtual void RoPEImpl(const size_t position, const TransformerConfig& config,
+                        void* Q, void* K, const std::type_info& type) = 0;
 
   virtual void SoftMaxImpl(const void* input, void* output,
                            const std::type_info& type) = 0;
 
   virtual void AttentionImpl(const void* Q, const void* K, const void* V,
-                             const Config& config, const size_t pos,
+                             const TransformerConfig& config, const size_t pos,
                              const size_t header_idx, void* output,
                              const std::type_info& type) = 0;
 

@@ -51,12 +51,12 @@ class OpSetCpu : public OpSet {
     }
   }
 
-  void RoPEImpl(const size_t position, const Config& config, void* Q, void* K,
-                const std::type_info& type, const float freq) override {
+  void RoPEImpl(const size_t position, const TransformerConfig& config, void* Q,
+                void* K, const std::type_info& type) override {
     if (type == typeid(float)) {
       CpuOps::RoPE<float>::Compute(position, config,
                                    *static_cast<Tensor<float>*>(Q),
-                                   *static_cast<Tensor<float>*>(K), freq);
+                                   *static_cast<Tensor<float>*>(K));
     } else {
       LOG(FATAL) << "Unsupported data type";
     }
@@ -72,7 +72,7 @@ class OpSetCpu : public OpSet {
   }
 
   void AttentionImpl(const void* Q, const void* K, const void* V,
-                     const Config& config, const size_t pos,
+                     const TransformerConfig& config, const size_t pos,
                      const size_t header_idx, void* output,
                      const std::type_info& type) override {
     if (type == typeid(float)) {

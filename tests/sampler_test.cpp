@@ -2,30 +2,25 @@
 
 #include <gtest/gtest.h>
 
+#include <llama.hpp>
 #include <memory>
 #include <random>
 #include <string>
 #include <vector>
 
-#if defined(USE_LLAMA2)
 #include "references/reference_llama2.cpp"
-#endif
-#include "tensor.hpp"
-#include "transformer.hpp"
 class SamplerTest : public ::testing::Test {
  public:
  protected:
   void SetUp() override {
     // code here will execute just before the test ensues
     build_transformer(&ref_transformer_, kChkPointPath.c_str());
-    transformer_ = std::make_unique<llama::Transformer<float>>(
-        kChkPointPath, *op_set_, llama::SpecialTokensLlama2());
-
     build_sampler(&ref_sampler_, ref_transformer_.config.vocab_size,
                   kTemperature, kTopP, kRngSeed);
 
+    auto& transformer = llama2_->GetTransformer();
     sampler_ = std::make_unique<llama::Sampler>(
-        transformer_->GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed,
+        transformer.GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed,
         *op_set_);
   }
 
@@ -35,14 +30,20 @@ class SamplerTest : public ::testing::Test {
   }
 
   const std::string kChkPointPath = "stories15M.bin";
+  const std::string kTokenizerBinPath = "tokenizer.bin";
   const float kTemperature = 0.0f;
   const float kTopP = 0.9f;
   const uint64_t kRngSeed = 0;
 
-  std::unique_ptr<llama::Transformer<float>> transformer_;
   std::unique_ptr<llama::Sampler> sampler_;
   std::unique_ptr<llama::OpSet> op_set_ =
       llama::CreateOpSet(llama::DeviceType::CPU);
+  const llama::LlamaConfig kLlamaConfig = {
+      .checkpoint_path = kChkPointPath.c_str(),
+      .tokenizer_path = kTokenizerBinPath.c_str(),
+      .device_type = llama::DeviceType::CPU};
+  std::unique_ptr<llama::Llama2<float>> llama2_ =
+      std::make_unique<llama::Llama2<float>>(kLlamaConfig);
 
   reference_llama2::Transformer ref_transformer_;
   reference_llama2::Sampler ref_sampler_;
