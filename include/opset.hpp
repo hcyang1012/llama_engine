@@ -21,7 +21,6 @@
 #include <glog/logging.h>
 namespace llama {
 
-// Virtual class for RMSNorm
 class OpSet {
  public:
   template <typename T>

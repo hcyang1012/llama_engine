@@ -12,14 +12,20 @@
 // C++ System-Headers
 #include <cstddef>
 // Project Headers
-#include <malloc/malloc_abc.hpp>
+#include <device/malloc/malloc_abc.hpp>
 // Third-party Headers
 
 namespace llama {
 class MemoryAllocatorCPU : public MemoryAllocator {
  public:
-  void* Allocate(const size_t size) override { return new char[size]; }
-  void Free(void* ptr) override { delete[] static_cast<char*>(ptr); }
+  bool Allocate(void** dst, const size_t size) override {
+    *dst = new char[size];
+    return true;
+  }
+  bool Free(void* ptr) override {
+    delete[] static_cast<char*>(ptr);
+    return true;
+  }
 
   ~MemoryAllocatorCPU() = default;
 };

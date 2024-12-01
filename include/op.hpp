@@ -15,8 +15,7 @@
 
 // Project Headers
 
-#include <dtypes.h>
-
+#include <dtypes.hpp>
 #include <opset.hpp>
 #include <opset_cpu.hpp>
 #include <tensor.hpp>

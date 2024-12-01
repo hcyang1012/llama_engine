@@ -14,21 +14,26 @@
 #include <memory>
 #include <stdexcept>
 // Project Headers
-#include <dtypes.h>
-
-#include <malloc/malloc_abc.hpp>
-#include <malloc/malloc_cpu.hpp>
+#include <device/malloc/malloc_abc.hpp>
+#include <device/malloc/malloc_cpu.hpp>
+#include <device/malloc/malloc_cuda.hpp>
+#include <dtypes.hpp>
 // Third-party Headers
 
 namespace llama {
 
-std::shared_ptr<MemoryAllocator> GetMemoryAllocator(const DeviceType type) {
+MemoryAllocator& GetMemoryAllocator(const DeviceType type) {
   switch (type) {
     case DeviceType::CPU: {
-      static std::shared_ptr<MemoryAllocatorCPU> allocator =
-          std::make_shared<MemoryAllocatorCPU>();
+      static MemoryAllocatorCPU allocator;
       return allocator;
     }
+#if defined(__CUDACC__)
+    case DeviceType::CUDA: {
+      static MemoryAllocatorCUDA allocator;
+      return allocator;
+    }
+#endif
     default:
       throw std::invalid_argument("Invalid allocation type");
   }

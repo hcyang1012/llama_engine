@@ -16,7 +16,5 @@ using llama_uint32_t = uint32_t;
 using llama_uint64_t = uint64_t;
 
 using llama_float = float;
-
-enum DeviceType { CPU };
-
+enum DeviceType { CPU, CUDA };
 }  // namespace llama

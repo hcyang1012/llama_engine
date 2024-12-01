@@ -17,8 +17,8 @@
 #include <stdexcept>
 #include <vector>
 // Project Headers
-#include <malloc/malloc.hpp>
-
+#include <device/device.hpp>
+#include <dtypes.hpp>
 // Third-party Headers
 #include <glog/logging.h>
 
@@ -90,15 +90,17 @@ class Tensor {
         kIsOwner(false),
         shape(shape),
         device_type_(device_type),
-        allocator(GetMemoryAllocator(device_type)) {}
+        allocator(DeviceFactory::GetDevice(device_type_).GetMemoryAllocator()) {
+  }
 
   explicit Tensor(const Shape &shape, const DeviceType &type)
       : kDataBytes(sizeof(T) * shape.GetSize()),
         kIsOwner(true),
         shape(shape),
         device_type_(type),
-        allocator(GetMemoryAllocator(type)),
-        data(reinterpret_cast<T *>(allocator->Allocate(kDataBytes))) {}
+        allocator(DeviceFactory::GetDevice(device_type_).GetMemoryAllocator()) {
+    allocator.Allocate(reinterpret_cast<void **>(&data), kDataBytes);
+  }
 
   Tensor(const Tensor<T> &other)
       : kDataBytes(other.GetDataBytesSize()),
@@ -119,7 +121,7 @@ class Tensor {
   /// @brief Destructor
   ~Tensor() {
     if (kIsOwner) {
-      allocator->Free(data);
+      allocator.Free(data);
     }
   }
 
@@ -194,7 +196,7 @@ class Tensor {
     }
 
     if (kIsOwner) {
-      allocator->Free(data);
+      allocator.Free(data);
     }
 
     kIsOwner = false;
@@ -212,7 +214,7 @@ class Tensor {
   bool kIsOwner;
   Shape shape;
   const DeviceType device_type_;
-  std::shared_ptr<MemoryAllocator> allocator;
+  MemoryAllocator &allocator;
 
   T *data;
 };

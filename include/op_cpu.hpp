@@ -17,9 +17,8 @@
 // For numeric_limits
 #include <limits>
 // Project Headers
-#include <dtypes.h>
-
 #include <config.hpp>
+#include <dtypes.hpp>
 #include <tensor.hpp>
 
 // Third-party Headers

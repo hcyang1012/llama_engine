@@ -2,6 +2,8 @@
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -42,3 +44,9 @@ add_test_executable(op_ewadd_test op_ewadd_test.cpp)
 add_test_executable(forward_test forward_test.cpp)
 add_test_executable(op_argmax_test op_argmax_test.cpp)
 add_test_executable(generate_test generate_test.cpp)
+
+# CUDA tests
+if(USE_CUDA)
+    add_test_executable(cuda_allocator_test cuda/cuda_allocator_test.cpp)
+    append_cuda_deps(cuda_allocator_test)
+endif()
