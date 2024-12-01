@@ -12,7 +12,7 @@
 // C++ System-Headers
 #include <cstddef>
 // Project Headers
-#include <device/malloc/malloc_abc.hpp>
+#include <device/malloc/malloc_base.hpp>
 // Third-party Headers
 
 namespace llama {

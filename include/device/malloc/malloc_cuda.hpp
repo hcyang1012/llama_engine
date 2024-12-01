@@ -12,7 +12,7 @@
 // C++ System-Headers
 #include <cstddef>
 // Project Headers
-#include <device/malloc/malloc_abc.hpp>
+#include <device/malloc/malloc_base.hpp>
 // Third-party Headers
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"

@@ -1,6 +1,6 @@
 /**
- * @file allocator_abc.hpp
- * @brief A abstract base class for memory allocation.
+ * @file allocator_base.hpp
+ * @brief An abstract base class for memory allocation.
  * @author Heecheol Yang (heecheol.yang@outlook.com)
  * @date 2024-11-28
  */
