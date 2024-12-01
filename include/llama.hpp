@@ -13,8 +13,7 @@
 #include <string>
 
 // Project Headers
-#include <dtypes.h>
-
+#include <dtypes.hpp>
 #include <tokenizer.hpp>
 #include <transformer.hpp>
 // Third-party Headers

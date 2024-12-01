@@ -1,6 +1,6 @@
-#include <dtypes.h>
 #include <gtest/gtest.h>
 
+#include <dtypes.hpp>
 #include <op.hpp>
 
 #include "tensor.hpp"

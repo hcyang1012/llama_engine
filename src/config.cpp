@@ -9,9 +9,8 @@
 // C++ System-Headers
 
 // Project Headers
-#include <dtypes.h>
-
 #include <config.hpp>
+#include <dtypes.hpp>
 // Third-party Headers
 
 namespace llama {

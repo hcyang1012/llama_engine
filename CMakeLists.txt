@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(llama2_cpp_dummy VERSION 0.1.0 LANGUAGES C CXX)
 
+# Add option to enable/disable cuda
+option(USE_CUDA "Enable CUDA" OFF)
+if(USE_CUDA)
+    include(${CMAKE_SOURCE_DIR}/cmake/cuda_build.cmake)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
     glog

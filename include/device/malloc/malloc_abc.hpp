@@ -18,8 +18,8 @@
 namespace llama {
 class MemoryAllocator {
  public:
-  virtual void* Allocate(const size_t size) = 0;
-  virtual void Free(void* ptr) = 0;
+  virtual bool Allocate(void** dst, const size_t size) = 0;
+  virtual bool Free(void* ptr) = 0;
 
   virtual ~MemoryAllocator() = default;
 

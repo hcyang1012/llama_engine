@@ -14,7 +14,7 @@
 #include <fstream>
 #include <string>
 // Project Headers
-#include <dtypes.h>
+#include <dtypes.hpp>
 // Third-party Headers
 
 namespace llama {
