@@ -14,6 +14,7 @@
 // Project Headers
 #include <device/memcpy/memcpy_base.hpp>
 #include <device/memcpy/memcpy_cpu.hpp>
+#include <device/memcpy/memcpy_cuda.hpp>
 #include <dtypes.hpp>
 // Third-party Headers
 
@@ -25,6 +26,12 @@ MemcpyBase& GetMemcpy(const DeviceType type) {
       static MemcpyCPU memcpy_cpu;
       return memcpy_cpu;
     }
+#if defined(USE_CUDA)
+    case DeviceType::CUDA: {
+      static MemcpyCUDA memcpy_cuda;
+      return memcpy_cuda;
+    }
+#endif
     default:
       throw std::invalid_argument("Invalid memcpy type");
   }

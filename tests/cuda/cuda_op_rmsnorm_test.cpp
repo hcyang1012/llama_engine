@@ -4,7 +4,7 @@
 #include <op.hpp>
 #include <random>
 #include <references/reference_llama2.cpp>
-class RmsNormTest : public ::testing::Test {
+class CUDA_RmsNormTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // code here will execute just before the test ensues
@@ -14,9 +14,9 @@ class RmsNormTest : public ::testing::Test {
 
     const size_t kSize = 4;
     x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
-                                                kLlamaConfig.device_type);
+                                                llama::DeviceType::CPU);
     weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
-                                                     kLlamaConfig.device_type);
+                                                     llama::DeviceType::CPU);
 
     for (size_t i = 0; i < kSize; i++) {
       (*x_)[i] = dis(gen);
@@ -38,7 +38,7 @@ class RmsNormTest : public ::testing::Test {
   const llama::LlamaConfig kLlamaConfig = {
       .checkpoint_path = kChkPointPath.c_str(),
       .tokenizer_path = kTokenizerBinPath.c_str(),
-      .device_type = llama::DeviceType::CPU};
+      .device_type = llama::DeviceType::CUDA};
   std::unique_ptr<llama::Llama2<float>> llama2_ =
       std::make_unique<llama::Llama2<float>>(kLlamaConfig);
 
@@ -46,22 +46,39 @@ class RmsNormTest : public ::testing::Test {
       llama::CreateOpSet(kLlamaConfig.device_type);
 };
 
-TEST_F(RmsNormTest, RmsNormTest) {
+TEST_F(CUDA_RmsNormTest, RmsNormTest) {
   const size_t kSize = 4;
   std::vector<float> expected_o(kSize);
   llama::Tensor<float> actual(x_->GetShape(), kLlamaConfig.device_type);
+  llama::Tensor<float> device_x(x_->GetShape(), kLlamaConfig.device_type);
+  llama::Tensor<float> device_weight(weight_->GetShape(),
+                                     kLlamaConfig.device_type);
 
-  auto op_set_ = llama::CreateOpSet(llama::DeviceType::CPU);
-  op_set_->RmsNorm<float>(*x_, *weight_, actual);
+  llama::DeviceFactory::GetDevice(kLlamaConfig.device_type)
+      .GetMemcpy()
+      .Copy(*device_x.GetData(), *x_->GetData());
+  llama::DeviceFactory::GetDevice(kLlamaConfig.device_type)
+      .GetMemcpy()
+      .Copy(*device_weight.GetData(), *weight_->GetData());
+
+  auto op_set_ = llama::CreateOpSet(llama::DeviceType::CUDA);
+  op_set_->RmsNorm<float>(device_x, device_weight, actual);
+
   reference_llama2::rmsnorm(
       expected_o.data(), static_cast<const float*>(x_->GetData()->GetBuffer()),
       static_cast<const float*>(weight_->GetData()->GetBuffer()), kSize);
 
-  EXPECT_TRUE(std::equal(expected_o.begin(), expected_o.end(),
-                         static_cast<float*>(actual.GetData()->GetBuffer())));
+  auto out_buffer_host =
+      llama::Tensor<float>(actual.GetShape(), llama::DeviceType::CPU);
+  llama::DeviceFactory::GetDevice(llama::DeviceType::CUDA)
+      .GetMemcpy()
+      .Copy(*(out_buffer_host.GetData()), *(actual.GetData()));
+  EXPECT_TRUE(
+      std::equal(expected_o.begin(), expected_o.end(),
+                 static_cast<float*>(out_buffer_host.GetData()->GetBuffer())));
 }
 
-TEST_F(RmsNormTest, ForwardTest) {
+TEST_F(CUDA_RmsNormTest, ForwardTest) {
   auto& transformer = llama2_->GetTransformer();
   const auto& tokenizer = llama2_->GetTokenizer();
   const size_t kNumOfLayers = transformer.GetConfig().NumLayers();
@@ -78,14 +95,16 @@ TEST_F(RmsNormTest, ForwardTest) {
   const size_t kPos = 0;  // First position
   llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
-  auto content_row =
+  auto embed =
       static_cast<float*>(kWeights.TokenEmbeddingTable()->GetBuffer()) +
       kPos * kDim;
-  std::copy(content_row, content_row + kDim,
-            static_cast<float*>(
-                transformer.GetRunState().X().GetData()->GetBuffer()));
-
-  std::copy(content_row, content_row + kDim, ref_run_state.x);
+  llama::DeviceFactory::GetDevice(kLlamaConfig.device_type)
+      .GetMemcpy()
+      .Copy(*(llama2_->GetTransformer().GetRunState().X().GetData()),
+            (void*)embed, kDim * sizeof(float));
+  float* content_row =
+      ref_transformer.weights.token_embedding_table + kPos * kDim;
+  memcpy(ref_run_state.x, content_row, kDim * sizeof(*ref_run_state.x));
 
   for (size_t layer = 0; layer < kNumOfLayers; layer++) {
     reference_llama2::rmsnorm(ref_run_state.xb, ref_run_state.x,
@@ -95,10 +114,20 @@ TEST_F(RmsNormTest, ForwardTest) {
                             kWeights.RMSAttnWeight(layer),
                             transformer.GetRunState().XB());
 
-    EXPECT_TRUE(
-        std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                   static_cast<float*>(
-                       transformer.GetRunState().XB().GetData()->GetBuffer())))
-        << "Failed at layer " << layer;
+    auto out_buffer_host = llama::Tensor<float>(
+        transformer.GetRunState().XB().GetShape(), llama::DeviceType::CPU);
+    llama::DeviceFactory::GetDevice(llama::DeviceType::CUDA)
+        .GetMemcpy()
+        .Copy(*(out_buffer_host.GetData()),
+              *(transformer.GetRunState().XB().GetData()));
+
+    bool equal = true;
+    for (size_t i = 0; i < kDim; i++) {
+      if (std::abs(ref_run_state.xb[i] - out_buffer_host[i]) > 1e-5) {
+        equal = false;
+        break;
+      }
+    }
+    EXPECT_TRUE(equal) << "Mismatch at layer " << layer;
   }
 }

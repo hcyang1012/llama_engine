@@ -130,11 +130,13 @@ class TransformerWeights {
     {
       const size_t kTokenEmbeddingTableSize =
           static_cast<size_t>(config.VocabSize()) * config.Dim();
+
+      // Embedding Lookup Table is always on the host
       token_embedding_table_ =
-          DeviceFactory::GetDevice(device_type_)
+          DeviceFactory::GetDevice(DeviceType::CPU)
               .GetMemoryAllocator()
               .Allocate(kTokenEmbeddingTableSize * sizeof(T));
-      DeviceFactory::GetDevice(device_type_)
+      DeviceFactory::GetDevice(DeviceType::CPU)
           .GetMemcpy()
           .Copy(*token_embedding_table_, p_weights,
                 kTokenEmbeddingTableSize * sizeof(T));

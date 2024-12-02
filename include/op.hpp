@@ -18,6 +18,7 @@
 #include <dtypes.hpp>
 #include <opset.hpp>
 #include <opset_cpu.hpp>
+#include <opset_cuda.hpp>
 #include <tensor.hpp>
 // Third-party Headers
 #include <glog/logging.h>
@@ -27,6 +28,10 @@ std::unique_ptr<OpSet> CreateOpSet(const DeviceType type) {
   switch (type) {
     case DeviceType::CPU:
       return std::make_unique<OpSetCpu>();
+#if defined(USE_CUDA)
+    case DeviceType::CUDA:
+      return std::make_unique<OpSetCuda>();
+#endif
     default:
       LOG(FATAL) << "Unsupported OpType";
   }

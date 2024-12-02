@@ -1,3 +1,4 @@
+
 # GoogleTest requires at least C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -47,6 +48,13 @@ add_test_executable(generate_test generate_test.cpp)
 
 # CUDA tests
 if(USE_CUDA)
+
+    build_cuda_file(op_cuda ${CMAKE_SOURCE_DIR}/include/op_cuda.cu)
+
     add_test_executable(cuda_allocator_test cuda/cuda_allocator_test.cpp)
     append_cuda_deps(cuda_allocator_test)
+    
+    add_test_executable(cuda_op_rmsnorm_test cuda/cuda_op_rmsnorm_test.cpp)
+    append_cuda_deps(cuda_op_rmsnorm_test)
+    target_link_libraries(cuda_op_rmsnorm_test PRIVATE op_cuda)
 endif()
