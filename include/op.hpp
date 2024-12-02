@@ -30,6 +30,7 @@ std::unique_ptr<OpSet> CreateOpSet(const DeviceType type) {
     default:
       LOG(FATAL) << "Unsupported OpType";
   }
+  return nullptr;
 }
 
 }  // namespace llama

@@ -14,7 +14,7 @@
 #include <memory>
 #include <stdexcept>
 // Project Headers
-#include <device/malloc/malloc_abc.hpp>
+#include <device/malloc/malloc_base.hpp>
 #include <device/malloc/malloc_cpu.hpp>
 #include <device/malloc/malloc_cuda.hpp>
 #include <dtypes.hpp>

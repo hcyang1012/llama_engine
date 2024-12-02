@@ -13,6 +13,7 @@
 
 // Project Headers
 #include <device/malloc/malloc.hpp>
+#include <device/memcpy/memcpy.hpp>
 // Third-party Headers
 
 namespace llama {
@@ -20,5 +21,6 @@ namespace llama {
 class Device {
  public:
   virtual MemoryAllocator& GetMemoryAllocator() = 0;
+  virtual MemcpyBase& GetMemcpy() = 0;
 };
 }  // namespace llama

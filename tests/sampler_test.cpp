@@ -105,15 +105,17 @@ TEST_F(SamplerTest, SampleTest) {
   std::mt19937 gen(rd());
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);
 
-  std::vector<float> logits;
   const size_t kNumOfLogits = sampler_->VocabSize();
+  auto logits = llama::GetMemoryAllocator(llama::DeviceType::CPU)
+                    .Allocate(kNumOfLogits * sizeof(float));
+  auto logits_buf = static_cast<float*>(logits->GetBuffer());
   for (size_t i = 0; i < kNumOfLogits; i++) {
-    logits.push_back(dis(gen));
+    logits_buf[i] = dis(gen);
   }
 
-  llama::Tensor<float> logits_tensor(logits.data(), {kNumOfLogits},
+  llama::Tensor<float> logits_tensor(logits, {kNumOfLogits},
                                      op_set_->GetDeviceType());
   const int kNext = sampler_->Sample(logits_tensor);
 
-  int ref_next = sample(&ref_sampler_, logits.data());
+  int ref_next = sample(&ref_sampler_, logits_buf);
 }

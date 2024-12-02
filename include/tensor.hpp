@@ -18,6 +18,7 @@
 #include <vector>
 // Project Headers
 #include <device/device.hpp>
+#include <device/malloc/malloc.hpp>
 #include <dtypes.hpp>
 // Third-party Headers
 #include <glog/logging.h>
@@ -83,11 +84,10 @@ class Shape {
 template <typename T>
 class Tensor {
  public:
-  explicit Tensor(const T *data, const Shape &shape,
+  explicit Tensor(std::shared_ptr<MemoryBuffer> data, const Shape &shape,
                   const DeviceType &device_type)
-      : data(const_cast<T *>(data)),
+      : data_(data),
         kDataBytes(sizeof(T) * shape.GetSize()),
-        kIsOwner(false),
         shape(shape),
         device_type_(device_type),
         allocator(DeviceFactory::GetDevice(device_type_).GetMemoryAllocator()) {
@@ -95,23 +95,22 @@ class Tensor {
 
   explicit Tensor(const Shape &shape, const DeviceType &type)
       : kDataBytes(sizeof(T) * shape.GetSize()),
-        kIsOwner(true),
         shape(shape),
         device_type_(type),
         allocator(DeviceFactory::GetDevice(device_type_).GetMemoryAllocator()) {
-    allocator.Allocate(reinterpret_cast<void **>(&data), kDataBytes);
+    data_ = allocator.Allocate(kDataBytes);
   }
 
   Tensor(const Tensor<T> &other)
       : kDataBytes(other.GetDataBytesSize()),
-        kIsOwner(false),
         shape(other.GetShape()),
         device_type_(other.device_type_),
         allocator(GetMemoryAllocator(other.device_type_)),
-        data(const_cast<T *>(other.GetData())) {}
+        data_(other.GetData()) {}
 
   std::string ToString() const {
     std::stringstream ss;
+    T *data = static_cast<T *>(data_->GetBuffer());
     for (size_t i = 0; i < shape.GetSize(); i++) {
       ss << "[" << i << "]\t" << data[i] << std::endl;
     }
@@ -119,11 +118,7 @@ class Tensor {
   }
 
   /// @brief Destructor
-  ~Tensor() {
-    if (kIsOwner) {
-      allocator.Free(data);
-    }
-  }
+  ~Tensor() {}
 
   /// @brief Get the data at the index
   /// @param index Index of the data
@@ -133,6 +128,7 @@ class Tensor {
     for (size_t i = 0; i < indices.size(); i++) {
       index = index * shape[i] + indices[i];
     }
+    T *data = static_cast<T *>(data_->GetBuffer());
     return data[index];
   }
   const T &operator[](const std::vector<size_t> &indices) const {
@@ -143,12 +139,13 @@ class Tensor {
     for (int i = indices.size() - 1; i >= 0; i--) {
       index = index * shape[i] + indices[i];
     }
-    return data[index];
+    return static_cast<T *>(data_->GetBuffer())[index];
   }
 
   const T &at(const size_t i0) const {
     DCHECK_EQ(shape.GetRank(), 1) << "Tensor should be 1D tensor";
     DCHECK_LT(i0, shape[0]) << "Index[0] out of range" << i0 << " " << shape[0];
+    const T *data = static_cast<T *>(data_->GetBuffer());
     return data[i0];
   }
 
@@ -156,6 +153,7 @@ class Tensor {
     DCHECK_EQ(shape.GetRank(), 2) << "Tensor should be 2D tensor";
     DCHECK_LT(i0, shape[0]) << "Index[0] out of range" << i0 << " " << shape[0];
     DCHECK_LT(i1, shape[1]) << "Index[1] out of range" << i1 << " " << shape[1];
+    const T *data = static_cast<T *>(data_->GetBuffer());
     return data[i1 * shape[0] + i0];
   }
 
@@ -164,6 +162,7 @@ class Tensor {
     DCHECK_LT(i0, shape[0]) << "Index[0] out of range" << i0 << " " << shape[0];
     DCHECK_LT(i1, shape[1]) << "Index[1] out of range" << i1 << " " << shape[1];
     DCHECK_LT(i2, shape[2]) << "Index[2] out of range" << i2 << " " << shape[2];
+    const T *data = static_cast<T *>(data_->GetBuffer());
     return data[i2 * (shape[0] * shape[1]) + i1 * shape[0] + i0];
   }
 
@@ -180,43 +179,41 @@ class Tensor {
     if (shape.GetSize() != kDataBytes / sizeof(T)) {
       throw std::invalid_argument("Size of the shape does not match the data");
     }
-    return Tensor<T>(data, shape, device_type_);
+    return Tensor<T>(data_, shape, device_type_);
   }
 
-  const T *GetData() const { return data; }
-  T *GetData() { return data; }
+  const auto GetData() const { return data_; }
+  auto GetData() { return data_; }
   const size_t GetDataBytesSize() const { return kDataBytes; }
 
-  T &operator[](size_t index) { return data[index]; }
-  T operator[](size_t index) const { return data[index]; }
+  T &operator[](size_t index) {
+    return static_cast<T *>(data_->GetBuffer())[index];
+  }
+  T operator[](size_t index) const {
+    return static_cast<T *>(data_->GetBuffer())[index];
+  }
 
   Tensor<T> &operator=(const Tensor<T> &other) {
     if (this == &other) {
       return *this;
     }
 
-    if (kIsOwner) {
-      allocator.Free(data);
-    }
-
-    kIsOwner = false;
     allocator = other.allocator;
     kDataBytes = other.kDataBytes;
     shape = other.shape;
     device_type_ = other.device_type_;
-    data = const_cast<T *>(other.data);
+    data_ = other.data_;
 
     return *this;
   }
 
  private:
   size_t kDataBytes;
-  bool kIsOwner;
   Shape shape;
   const DeviceType device_type_;
   MemoryAllocator &allocator;
 
-  T *data;
+  std::shared_ptr<MemoryBuffer> data_;
 };
 
 std::ostream &operator<<(std::ostream &os, const llama::Shape &shape) {

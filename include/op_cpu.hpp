@@ -35,7 +35,9 @@ class RmsNorm {
     DCHECK_EQ(x.GetShape().GetRank(), 1) << "Input tensor should be 1D tensor";
     DCHECK_EQ(out.GetShape(), x.GetShape())
         << "Output tensor should have the same shape as the input tensor";
-    Compute(x.GetData(), weight.GetData(), x.GetShape()[0], out.GetData());
+    Compute(static_cast<const T*>(x.GetData()->GetBuffer()),
+            static_cast<const T*>(weight.GetData()->GetBuffer()),
+            x.GetShape()[0], static_cast<T*>(out.GetData()->GetBuffer()));
   }
 
  private:
@@ -90,8 +92,10 @@ class MatMul {
       DCHECK_EQ(kOutShape, kExpectedShape)
           << "Output tensor should have the shape of " << kExpectedShape;
     }
-    Compute(weight.GetData(), input.GetData(), weight.GetShape()[0],
-            weight.GetShape()[1], out.GetData());
+    Compute(static_cast<const T*>(weight.GetData()->GetBuffer()),
+            static_cast<const T*>(input.GetData()->GetBuffer()),
+            weight.GetShape()[0], weight.GetShape()[1],
+            static_cast<T*>(out.GetData()->GetBuffer()));
   }
 
  private:
@@ -115,11 +119,12 @@ template <typename T>
 class RoPE {
  public:
   static void Compute(const size_t position, const TransformerConfig& config,
-                      Tensor<float>& Q, Tensor<float>& K) {
+                      Tensor<T>& Q, Tensor<T>& K) {
     DCHECK_EQ(Q.GetShape()[0], config.Dim())
         << "Input tensor should have the same dimension as the config";
 
-    Compute(position, config, Q.GetData(), K.GetData());
+    Compute(position, config, static_cast<T*>(Q.GetData()->GetBuffer()),
+            static_cast<T*>(K.GetData()->GetBuffer()));
   }
 
  private:
@@ -167,12 +172,16 @@ class SoftMax {
                                : input.GetShape()[1];
 
     if (input.GetShape().GetRank() == 1) {
-      Compute(input.GetData(), output.GetData(), kStride);
+      Compute(static_cast<const T*>(input.GetData()->GetBuffer()),
+              static_cast<float*>(output.GetData()->GetBuffer()), kStride);
     } else {
       const size_t kBatchSize = input.GetShape()[0];
       for (size_t batch = 0; batch < kBatchSize; batch++) {
-        Compute(input.GetData() + batch * kStride,
-                output.GetData() + batch * kStride, kStride);
+        Compute(static_cast<const T*>(input.GetData()->GetBuffer()) +
+                    batch * kStride,
+                static_cast<float*>(output.GetData()->GetBuffer()) +
+                    batch * kStride,
+                kStride);
       }
     }
   }
@@ -240,7 +249,9 @@ class Attention {
     SoftMax<T>::Compute(attention_scores, attention_scores);
 
     // Weighted sum of the values, store back into output
-    std::fill(output.GetData(), output.GetData() + output.GetShape().GetSize(),
+    std::fill(static_cast<T*>(output.GetData()->GetBuffer()),
+              static_cast<T*>(output.GetData()->GetBuffer()) +
+                  output.GetShape().GetSize(),
               static_cast<T>(0));
     for (size_t t = 0; t <= pos; ++t) {
       const float a = attention_scores[t];
@@ -265,7 +276,9 @@ class ElementwiseAdd {
         << "Output tensor should have the same shape as the input tensor";
 
     const size_t size = left.GetShape().GetSize();
-    Compute(left.GetData(), right.GetData(), output.GetData(), size);
+    Compute(static_cast<const T*>(left.GetData()->GetBuffer()),
+            static_cast<const T*>(right.GetData()->GetBuffer()),
+            static_cast<T*>(output.GetData()->GetBuffer()), size);
   }
 
  private:
@@ -289,7 +302,9 @@ class SiLU_EWMul {
         << "Output tensor should have the same shape as the input tensor";
 
     const size_t size = input.GetShape().GetSize();
-    Compute(input.GetData(), weight.GetData(), output.GetData(), size);
+    Compute(static_cast<const T*>(input.GetData()->GetBuffer()),
+            static_cast<const T*>(weight.GetData()->GetBuffer()),
+            static_cast<T*>(output.GetData()->GetBuffer()), size);
   }
 
  private:

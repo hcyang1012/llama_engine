@@ -22,8 +22,10 @@ namespace llama {
 class DeviceCPU : public Device {
  public:
   MemoryAllocator& GetMemoryAllocator() override { return allocator_; }
+  MemcpyBase& GetMemcpy() override { return memcpy_; }
 
  private:
   MemoryAllocatorCPU allocator_;
+  MemcpyCPU memcpy_;
 };
 }  // namespace llama

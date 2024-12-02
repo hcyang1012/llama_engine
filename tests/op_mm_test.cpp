@@ -65,11 +65,12 @@ TEST_F(MatMulTest, MatMulTest) {
   std::vector<float> expected_o(n);
   llama::Tensor<float> actual({n}, kLlamaConfig.device_type);
   op_set_->MatMul<float>(*weight_, *input_, actual);
-  reference_llama2::matmul(expected_o.data(), input_->GetData(),
-                           weight_->GetData(), d, n);
+  reference_llama2::matmul(
+      expected_o.data(), static_cast<float*>(input_->GetData()->GetBuffer()),
+      static_cast<float*>(weight_->GetData()->GetBuffer()), d, n);
 
-  EXPECT_TRUE(
-      std::equal(expected_o.begin(), expected_o.end(), actual.GetData()));
+  EXPECT_TRUE(std::equal(expected_o.begin(), expected_o.end(),
+                         static_cast<float*>(actual.GetData()->GetBuffer())));
 }
 
 TEST_F(MatMulTest, ForwardTest) {
@@ -90,9 +91,13 @@ TEST_F(MatMulTest, ForwardTest) {
   const size_t kPos = 0;  // First position
   llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
-  auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
-  std::copy(content_row, content_row + kDim,
-            transformer.GetRunState().X().GetData());
+  auto content_row =
+      static_cast<float*>(kWeights.TokenEmbeddingTable()->GetBuffer()) +
+      kPos * kDim;
+
+  llama::GetMemcpy(kLlamaConfig.device_type)
+      .Copy(*transformer.GetRunState().X().GetData(), (void*)content_row,
+            kDim * sizeof(float));
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -106,8 +111,10 @@ TEST_F(MatMulTest, ForwardTest) {
                             kWeights.RMSAttnWeight(layer),
                             transformer.GetRunState().XB());
 
-    EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                           transformer.GetRunState().XB().GetData()));
+    EXPECT_TRUE(
+        std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
+                   static_cast<float*>(
+                       transformer.GetRunState().XB().GetData()->GetBuffer())));
 
     const auto kLayerOffset = layer * kConfig.SeqLen() * kKVDim;
     ref_run_state.k = ref_run_state.key_cache + kLayerOffset + kPos * kKVDim;
@@ -121,8 +128,10 @@ TEST_F(MatMulTest, ForwardTest) {
     reference_llama2::matmul(ref_run_state.q, ref_run_state.xb,
                              ref_weights.wq + layer * kDim * kDim, kDim, kDim);
 
-    EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                           transformer.GetRunState().Q().GetData()));
+    EXPECT_TRUE(
+        std::equal(ref_run_state.q, ref_run_state.q + kDim,
+                   static_cast<float*>(
+                       transformer.GetRunState().Q().GetData()->GetBuffer())));
 
     // Calculate K
     auto K = transformer.GetRunState().K(layer, kPos).ReShape({kKVDim});
@@ -132,8 +141,8 @@ TEST_F(MatMulTest, ForwardTest) {
     reference_llama2::matmul(ref_run_state.k, ref_run_state.xb,
                              ref_weights.wk + layer * kDim * kKVDim, kDim,
                              kKVDim);
-    EXPECT_TRUE(
-        std::equal(ref_run_state.k, ref_run_state.k + kKVDim, K.GetData()));
+    EXPECT_TRUE(std::equal(ref_run_state.k, ref_run_state.k + kKVDim,
+                           static_cast<float*>(K.GetData()->GetBuffer())));
 
     // Calculate V
     auto V = transformer.GetRunState().V(layer, kPos).ReShape({kKVDim});
@@ -143,7 +152,7 @@ TEST_F(MatMulTest, ForwardTest) {
     reference_llama2::matmul(ref_run_state.v, ref_run_state.xb,
                              ref_weights.wv + layer * kDim * kKVDim, kDim,
                              kKVDim);
-    EXPECT_TRUE(
-        std::equal(ref_run_state.v, ref_run_state.v + kKVDim, V.GetData()));
+    EXPECT_TRUE(std::equal(ref_run_state.v, ref_run_state.v + kKVDim,
+                           static_cast<float*>(V.GetData()->GetBuffer())));
   }
 }

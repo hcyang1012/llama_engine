@@ -68,12 +68,9 @@ TEST_F(ForwardTest, Test) {
     auto result = encoder.PromptTokens();
     auto logits = transformer.Forward(result[0], 0);
 
-    // Float comparison of logits
-    // for (size_t i = 0; i < logits.GetShape().GetSize(); i++) {
-    //   EXPECT_NEAR(logits.GetData()[i], ref_logits[i], 1e-4);
-    // }
-    EXPECT_TRUE(std::equal(logits.GetData(),
-                           logits.GetData() + logits.GetShape().GetSize(),
-                           ref_logits));
+    const float *logits_data =
+        static_cast<float *>(logits.GetData()->GetBuffer());
+    EXPECT_TRUE(std::equal(
+        logits_data, logits_data + logits.GetShape().GetSize(), ref_logits));
   }
 }
