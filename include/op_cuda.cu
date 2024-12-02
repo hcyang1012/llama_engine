@@ -3,7 +3,7 @@
  * @brief Library for CUDA operations.
  * @author Heecheol Yang (heecheol.yang@outlook.com)
  * @date 2024-12-02
- * @note I bought this kernels form llama3.cuda project.
+ * @note I brought this kernels form llama3.cuda project.
  *       (https://github.com/likejazz/llama3.cuda)
  *       Thanks @likejazz
  */
