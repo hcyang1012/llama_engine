@@ -54,11 +54,12 @@ TEST_F(RmsNormTest, RmsNormTest) {
 
   auto op_set_ = llama::CreateOpSet(llama::DeviceType::CPU);
   op_set_->RmsNorm<float>(*x_, *weight_, actual);
-  reference_llama2::rmsnorm(expected_o.data(), x_->GetData(),
-                            weight_->GetData(), kSize);
+  reference_llama2::rmsnorm(
+      expected_o.data(), static_cast<const float*>(x_->GetData()->GetBuffer()),
+      static_cast<const float*>(weight_->GetData()->GetBuffer()), kSize);
 
-  EXPECT_TRUE(
-      std::equal(expected_o.begin(), expected_o.end(), actual.GetData()));
+  EXPECT_TRUE(std::equal(expected_o.begin(), expected_o.end(),
+                         static_cast<float*>(actual.GetData()->GetBuffer())));
 }
 
 TEST_F(RmsNormTest, ForwardTest) {
@@ -78,9 +79,12 @@ TEST_F(RmsNormTest, ForwardTest) {
   const size_t kPos = 0;  // First position
   llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
-  auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
+  auto content_row =
+      static_cast<float*>(kWeights.TokenEmbeddingTable()->GetBuffer()) +
+      kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer.GetRunState().X().GetData());
+            static_cast<float*>(
+                transformer.GetRunState().X().GetData()->GetBuffer()));
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -92,7 +96,10 @@ TEST_F(RmsNormTest, ForwardTest) {
                             kWeights.RMSAttnWeight(layer),
                             transformer.GetRunState().XB());
 
-    EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                           transformer.GetRunState().XB().GetData()));
+    EXPECT_TRUE(
+        std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
+                   static_cast<float*>(
+                       transformer.GetRunState().XB().GetData()->GetBuffer())))
+        << "Failed at layer " << layer;
   }
 }

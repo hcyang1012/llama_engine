@@ -81,7 +81,8 @@ TEST_F(WeightLoadTest, TokenEmbeddingTableTest) {
 
   const auto& kWeights = transformer_.GetWeights();
   const size_t kTokenEmbeddingTableSize = kConfig.VocabSize() * kConfig.Dim();
-  const auto p_tok_emb_table = kWeights.TokenEmbeddingTable();
+  const auto p_tok_emb_table =
+      static_cast<float*>(kWeights.TokenEmbeddingTable()->GetBuffer());
   // Contents of transformer_.weights.token_embedding_table should be equal to
   // contents of kWeights.token_embedding_table
   EXPECT_TRUE(std::equal(p_tok_emb_table,
@@ -97,8 +98,11 @@ TEST_F(WeightLoadTest, RMSAttWeightTest) {
   const auto p_rms_att_weight = kWeights.RMSAttnWeight();
   // Contents of transformer_.weights.rms_att_weight should be equal to
   // contents of kWeights.rms_att_weight
-  EXPECT_TRUE(std::equal(p_rms_att_weight, p_rms_att_weight + kRMSAttWeightSize,
-                         ref_transformer_.weights.rms_att_weight));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_rms_att_weight->GetBuffer()),
+      static_cast<const float*>(kWeights.RMSAttnWeight()->GetBuffer()) +
+          kRMSAttWeightSize,
+      ref_transformer_.weights.rms_att_weight));
 }
 
 TEST_F(WeightLoadTest, WQTest) {
@@ -110,7 +114,10 @@ TEST_F(WeightLoadTest, WQTest) {
   const auto p_wq = kWeights.WQ();
   // Contents of transformer_.weights.wq should be equal to
   // contents of kWeights.wq
-  EXPECT_TRUE(std::equal(p_wq, p_wq + kWQSize, ref_transformer_.weights.wq));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_wq->GetBuffer()),
+      static_cast<const float*>(kWeights.WQ()->GetBuffer()) + kWQSize,
+      ref_transformer_.weights.wq));
 }
 
 TEST_F(WeightLoadTest, WKTest) {
@@ -122,7 +129,10 @@ TEST_F(WeightLoadTest, WKTest) {
   const auto p_wk = kWeights.WK();
   // Contents of transformer_.weights.wk should be equal to
   // contents of kWeights.wk
-  EXPECT_TRUE(std::equal(p_wk, p_wk + kWKSize, ref_transformer_.weights.wk));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_wk->GetBuffer()),
+      static_cast<const float*>(kWeights.WK()->GetBuffer()) + kWKSize,
+      ref_transformer_.weights.wk));
 }
 
 TEST_F(WeightLoadTest, WVTest) {
@@ -134,7 +144,10 @@ TEST_F(WeightLoadTest, WVTest) {
   const auto p_wv = kWeights.WV();
   // Contents of transformer_.weights.wv should be equal to
   // contents of kWeights.wv
-  EXPECT_TRUE(std::equal(p_wv, p_wv + kWVSize, ref_transformer_.weights.wv));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_wv->GetBuffer()),
+      static_cast<const float*>(kWeights.WV()->GetBuffer()) + kWVSize,
+      ref_transformer_.weights.wv));
 }
 
 TEST_F(WeightLoadTest, WO) {
@@ -146,7 +159,10 @@ TEST_F(WeightLoadTest, WO) {
   const auto p_wo = kWeights.WO();
   // Contents of transformer_.weights.wo should be equal to
   // contents of kWeights.wo
-  EXPECT_TRUE(std::equal(p_wo, p_wo + kWOSize, ref_transformer_.weights.wo));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_wo->GetBuffer()),
+      static_cast<const float*>(kWeights.WO()->GetBuffer()) + kWOSize,
+      ref_transformer_.weights.wo));
 }
 
 TEST_F(WeightLoadTest, RMSFFNWeight) {
@@ -157,8 +173,11 @@ TEST_F(WeightLoadTest, RMSFFNWeight) {
   const auto p_rms_ffn_weight = kWeights.RMSFFNWeight();
   // Contents of transformer_.weights.rms_ffn_weight should be equal to
   // contents of kWeights.rms_ffn_weight
-  EXPECT_TRUE(std::equal(p_rms_ffn_weight, p_rms_ffn_weight + kRMSFFNWeightSize,
-                         ref_transformer_.weights.rms_ffn_weight));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_rms_ffn_weight->GetBuffer()),
+      static_cast<const float*>(kWeights.RMSFFNWeight()->GetBuffer()) +
+          kRMSFFNWeightSize,
+      ref_transformer_.weights.rms_ffn_weight));
 }
 
 TEST_F(WeightLoadTest, W1) {
@@ -170,7 +189,10 @@ TEST_F(WeightLoadTest, W1) {
   const auto p_w1 = kWeights.W1();
   // Contents of transformer_.weights.w1 should be equal to
   // contents of kWeights.w1
-  EXPECT_TRUE(std::equal(p_w1, p_w1 + kW1Size, ref_transformer_.weights.w1));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_w1->GetBuffer()),
+      static_cast<const float*>(kWeights.W1()->GetBuffer()) + kW1Size,
+      ref_transformer_.weights.w1));
 }
 
 TEST_F(WeightLoadTest, W2) {
@@ -182,7 +204,10 @@ TEST_F(WeightLoadTest, W2) {
   const auto p_w2 = kWeights.W2();
   // Contents of transformer_.weights.w2 should be equal to
   // contents of kWeights.w2
-  EXPECT_TRUE(std::equal(p_w2, p_w2 + kW2Size, ref_transformer_.weights.w2));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_w2->GetBuffer()),
+      static_cast<const float*>(kWeights.W2()->GetBuffer()) + kW2Size,
+      ref_transformer_.weights.w2));
 }
 
 TEST_F(WeightLoadTest, W3) {
@@ -194,7 +219,10 @@ TEST_F(WeightLoadTest, W3) {
   const auto p_w3 = kWeights.W3();
   // Contents of transformer_.weights.w3 should be equal to
   // contents of kWeights.w3
-  EXPECT_TRUE(std::equal(p_w3, p_w3 + kW3Size, ref_transformer_.weights.w3));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_w3->GetBuffer()),
+      static_cast<const float*>(kWeights.W3()->GetBuffer()) + kW3Size,
+      ref_transformer_.weights.w3));
 }
 
 TEST_F(WeightLoadTest, RMSFinalWeight) {
@@ -209,8 +237,10 @@ TEST_F(WeightLoadTest, RMSFinalWeight) {
 
   // Contents of transformer_.weights.rms_final_weight should be equal to
   // contents of kWeights.rms_final_weight
-  EXPECT_TRUE(std::equal(p_rms_final_weight.GetData(),
-                         p_rms_final_weight.GetData() + kRMSFinalWeightSize,
+  const float* p_rms_final_weight_data =
+      static_cast<const float*>(p_rms_final_weight.GetData()->GetBuffer());
+  EXPECT_TRUE(std::equal(p_rms_final_weight_data,
+                         p_rms_final_weight_data + kRMSFinalWeightSize,
                          ref_transformer_.weights.rms_final_weight));
 }
 
@@ -222,8 +252,10 @@ TEST_F(WeightLoadTest, WCLS) {
   const auto p_wcls = kWeights.WCLS();
   // Contents of transformer_.weights.wcls should be equal to
   // contents of kWeights.wcls
-  EXPECT_TRUE(std::equal(p_wcls.GetData(), p_wcls.GetData() + kWCLSSize,
-                         ref_transformer_.weights.wcls));
+  EXPECT_TRUE(std::equal(
+      static_cast<const float*>(p_wcls.GetData()->GetBuffer()),
+      static_cast<const float*>(p_wcls.GetData()->GetBuffer()) + kWCLSSize,
+      ref_transformer_.weights.wcls));
 
   LOG(WARNING) << "The size of WSL is not checked yet.";
 }

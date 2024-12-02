@@ -66,9 +66,12 @@ TEST_F(RopeTest, ForwardTest) {
   const size_t kPos = 0;  // First position
   llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
-  auto content_row = kWeights.TokenEmbeddingTable() + kPos * kDim;
+  auto content_row =
+      static_cast<float *>(kWeights.TokenEmbeddingTable()->GetBuffer()) +
+      kPos * kDim;
   std::copy(content_row, content_row + kDim,
-            transformer.GetRunState().X().GetData());
+            static_cast<float *>(
+                transformer.GetRunState().X().GetData()->GetBuffer()));
 
   std::copy(content_row, content_row + kDim, ref_run_state.x);
 
@@ -90,8 +93,10 @@ TEST_F(RopeTest, ForwardTest) {
                               kWeights.RMSAttnWeight(layer),
                               transformer.GetRunState().XB());
 
-      EXPECT_TRUE(std::equal(ref_run_state.xb, ref_run_state.xb + kDim,
-                             transformer.GetRunState().XB().GetData()));
+      EXPECT_TRUE(std::equal(
+          ref_run_state.xb, ref_run_state.xb + kDim,
+          static_cast<float *>(
+              transformer.GetRunState().XB().GetData()->GetBuffer())));
     }
 
     const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
@@ -127,14 +132,20 @@ TEST_F(RopeTest, ForwardTest) {
           kWeights.WV(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer.GetRunState().XB(), V);
 
-      EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer.GetRunState().Q().GetData()));
-      EXPECT_TRUE(
-          std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
-                     transformer.GetRunState().K(layer, kPos).GetData()));
-      EXPECT_TRUE(
-          std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
-                     transformer.GetRunState().V(layer, kPos).GetData()));
+      EXPECT_TRUE(std::equal(
+          ref_run_state.q, ref_run_state.q + kDim,
+          static_cast<float *>(
+              transformer.GetRunState().Q().GetData()->GetBuffer())));
+      EXPECT_TRUE(std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
+                             static_cast<float *>(transformer.GetRunState()
+                                                      .K(layer, kPos)
+                                                      .GetData()
+                                                      ->GetBuffer())));
+      EXPECT_TRUE(std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
+                             static_cast<float *>(transformer.GetRunState()
+                                                      .V(layer, kPos)
+                                                      .GetData()
+                                                      ->GetBuffer())));
     }
 
     const size_t kRefHeadSize = kDim / kRefConfig.n_heads;
@@ -161,8 +172,10 @@ TEST_F(RopeTest, ForwardTest) {
       auto K = transformer.GetRunState().K(0, kPos);
       op_set_->RoPE<float>(kPos, transformer.GetConfig(), Q, K);
 
-      EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             transformer.GetRunState().Q().GetData()));
+      EXPECT_TRUE(std::equal(
+          ref_run_state.q, ref_run_state.q + kDim,
+          static_cast<float *>(
+              transformer.GetRunState().Q().GetData()->GetBuffer())));
     }
   }
 }

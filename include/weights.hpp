@@ -15,6 +15,7 @@
 #include <string>
 // Project Headers
 #include <config.hpp>
+#include <device/device.hpp>
 #include <tensor.hpp>
 
 // Third-party Headers
@@ -31,86 +32,82 @@ class TransformerWeights {
     load_weights(checkpoint_path);
   }
 
-  ~TransformerWeights() {
-    if (mapped_file_ != nullptr) {
-      munmap(mapped_file_, file_size_);
-    }
-    if (fd_ != -1) {
-      close(fd_);
-    }
-  }
+  ~TransformerWeights() = default;
 
-  const T *TokenEmbeddingTable() const { return token_embedding_table_; }
-  const T *RMSAttnWeight() const { return rms_attn_weight_; }
+  auto TokenEmbeddingTable() const { return token_embedding_table_; }
+  auto RMSAttnWeight() const { return rms_attn_weight_; }
   const Tensor<T> RMSAttnWeight(const size_t layer) const {
-    return Tensor<T>(rms_attn_weight_ + layer * config.Dim(),
+    return Tensor<T>(rms_attn_weight_->Clone(layer * config.Dim() * sizeof(T)),
                      {static_cast<size_t>(config.Dim())}, device_type_);
   }
-  const T *RMSFFNWeight() const { return rms_ffn_weight_; }
+  auto RMSFFNWeight() const { return rms_ffn_weight_; }
   const Tensor<T> RMSFFNWeight(const size_t layer) const {
-    return Tensor<T>(rms_ffn_weight_ + layer * config.Dim(),
+    return Tensor<T>(rms_ffn_weight_->Clone(layer * config.Dim() * sizeof(T)),
                      {static_cast<size_t>(config.Dim())}, device_type_);
   }
 
-  const T *WQ() const { return wq_; }
+  auto WQ() const { return wq_; }
   const Tensor<T> WQ(const size_t layer) const {
-    return Tensor<T>(
-        wq_ + layer * config.Dim() * config.NumHeads() * config.HeadDim(),
-        {static_cast<size_t>(config.HeadDim()),
-         static_cast<size_t>(config.NumHeads()),
-         static_cast<size_t>(config.Dim())},
-        device_type_);
-  }
-  const T *WK() const { return wk_; }
-  const Tensor<T> WK(const size_t layer) const {
-    return Tensor<T>(
-        wk_ + layer * config.Dim() * config.NumKVHeads() * config.HeadDim(),
-        {static_cast<size_t>(config.HeadDim()),
-         static_cast<size_t>(config.NumKVHeads()),
-         static_cast<size_t>(config.Dim())},
-        device_type_);
-  }
-
-  const T *WV() const { return wv_; }
-  const Tensor<T> WV(const size_t layer) const {
-    return Tensor<T>(
-        wv_ + layer * config.Dim() * config.NumKVHeads() * config.HeadDim(),
-        {static_cast<size_t>(config.HeadDim()),
-         static_cast<size_t>(config.NumKVHeads()),
-         static_cast<size_t>(config.Dim())},
-        device_type_);
-  }
-
-  const T *WO() const { return wo_; }
-  const Tensor<T> WO(const size_t layer) const {
-    return Tensor<T>(
-        wo_ + layer * config.NumHeads() * config.HeadDim() * config.Dim(),
-        {static_cast<size_t>(config.Dim()),
-         static_cast<size_t>(config.HeadDim()),
-         static_cast<size_t>(config.NumHeads())},
-        device_type_);
-  }
-
-  const T *W1() const { return w1_; }
-  const Tensor<T> W1(const size_t layer) const {
-    return Tensor<T>(w1_ + layer * config.HiddenDim() * config.Dim(),
-                     {static_cast<size_t>(config.Dim()),
-                      static_cast<size_t>(config.HiddenDim())},
-                     device_type_);
-  }
-  const T *W2() const { return w2_; }
-  const Tensor<T> W2(const size_t layer) const {
-    return Tensor<T>(w2_ + layer * config.Dim() * config.HiddenDim(),
-                     {static_cast<size_t>(config.HiddenDim()),
+    return Tensor<T>(wq_->Clone(layer * config.Dim() * config.NumHeads() *
+                                config.HeadDim() * sizeof(T)),
+                     {static_cast<size_t>(config.HeadDim()),
+                      static_cast<size_t>(config.NumHeads()),
                       static_cast<size_t>(config.Dim())},
                      device_type_);
   }
-  const T *W3() const { return w3_; }
-  const Tensor<T> W3(const size_t layer) const {
-    return Tensor<T>(w3_ + layer * config.HiddenDim() * config.Dim(),
-                     {static_cast<size_t>(config.Dim()),
-                      static_cast<size_t>(config.HiddenDim())},
+  auto WK() const { return wk_; }
+  const Tensor<T> WK(const size_t layer) const {
+    return Tensor<T>(wk_->Clone(layer * config.Dim() * config.NumKVHeads() *
+                                config.HeadDim() * sizeof(T)),
+                     {static_cast<size_t>(config.HeadDim()),
+                      static_cast<size_t>(config.NumKVHeads()),
+                      static_cast<size_t>(config.Dim())},
                      device_type_);
+  }
+
+  auto WV() const { return wv_; }
+  const Tensor<T> WV(const size_t layer) const {
+    return Tensor<T>(wv_->Clone(layer * config.Dim() * config.NumKVHeads() *
+                                config.HeadDim() * sizeof(T)),
+                     {static_cast<size_t>(config.HeadDim()),
+                      static_cast<size_t>(config.NumKVHeads()),
+                      static_cast<size_t>(config.Dim())},
+                     device_type_);
+  }
+
+  auto WO() const { return wo_; }
+  const Tensor<T> WO(const size_t layer) const {
+    return Tensor<T>(wo_->Clone(layer * config.Dim() * config.NumHeads() *
+                                config.HeadDim() * sizeof(T)),
+                     {static_cast<size_t>(config.Dim()),
+                      static_cast<size_t>(config.HeadDim()),
+                      static_cast<size_t>(config.NumHeads())},
+                     device_type_);
+  }
+
+  auto W1() const { return w1_; }
+  const Tensor<T> W1(const size_t layer) const {
+    return Tensor<T>(
+        w1_->Clone(layer * config.HiddenDim() * config.Dim() * sizeof(T)),
+        {static_cast<size_t>(config.Dim()),
+         static_cast<size_t>(config.HiddenDim())},
+        device_type_);
+  }
+  auto W2() const { return w2_; }
+  const Tensor<T> W2(const size_t layer) const {
+    return Tensor<T>(
+        w2_->Clone(layer * config.Dim() * config.HiddenDim() * sizeof(T)),
+        {static_cast<size_t>(config.HiddenDim()),
+         static_cast<size_t>(config.Dim())},
+        device_type_);
+  }
+  auto W3() const { return w3_; }
+  const Tensor<T> W3(const size_t layer) const {
+    return Tensor<T>(
+        w3_->Clone(layer * config.HiddenDim() * config.Dim() * sizeof(T)),
+        {static_cast<size_t>(config.Dim()),
+         static_cast<size_t>(config.HiddenDim())},
+        device_type_);
   }
   const Tensor<T> RMSFinalWeight() const {
     return Tensor<T>(rms_final_weight_, {static_cast<size_t>(config.Dim())},
@@ -130,61 +127,152 @@ class TransformerWeights {
 
     const uint64_t kNumLayers = static_cast<uint64_t>(config.NumLayers());
 
-    const size_t kTokenEmbeddingTableSize =
-        static_cast<size_t>(config.VocabSize()) * config.Dim();
-    token_embedding_table_ = p_weights;
-    p_weights += kTokenEmbeddingTableSize;
+    {
+      const size_t kTokenEmbeddingTableSize =
+          static_cast<size_t>(config.VocabSize()) * config.Dim();
+      token_embedding_table_ =
+          DeviceFactory::GetDevice(device_type_)
+              .GetMemoryAllocator()
+              .Allocate(kTokenEmbeddingTableSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*token_embedding_table_, p_weights,
+                kTokenEmbeddingTableSize * sizeof(T));
+      p_weights += kTokenEmbeddingTableSize;
+    }
 
-    const size_t kRmsAttnWeightSize = kNumLayers * config.Dim();
-    rms_attn_weight_ = p_weights;
-    p_weights += kRmsAttnWeightSize;
+    {
+      const size_t kRmsAttnWeightSize = kNumLayers * config.Dim();
+      rms_attn_weight_ = DeviceFactory::GetDevice(device_type_)
+                             .GetMemoryAllocator()
+                             .Allocate(kRmsAttnWeightSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*rms_attn_weight_, p_weights, kRmsAttnWeightSize * sizeof(T));
+      p_weights += kRmsAttnWeightSize;
+    }
 
-    const size_t kWQSize =
-        kNumLayers * config.Dim() * (config.NumHeads() * kHeadSize);
-    wq_ = p_weights;
-    p_weights += kWQSize;
+    {
+      const size_t kWQSize =
+          kNumLayers * config.Dim() * (config.NumHeads() * kHeadSize);
+      wq_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kWQSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*wq_, p_weights, kWQSize * sizeof(T));
+      p_weights += kWQSize;
+    }
 
-    const size_t kWKSize =
-        kNumLayers * config.Dim() * (config.NumKVHeads() * kHeadSize);
-    wk_ = p_weights;
-    p_weights += kWKSize;
+    {
+      const size_t kWKSize =
+          kNumLayers * config.Dim() * (config.NumKVHeads() * kHeadSize);
+      wk_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kWKSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*wk_, p_weights, kWKSize * sizeof(T));
+      p_weights += kWKSize;
+    }
 
-    const size_t kWVSize =
-        kNumLayers * config.Dim() * (config.NumKVHeads() * kHeadSize);
-    wv_ = p_weights;
-    p_weights += kWVSize;
+    {
+      const size_t kWVSize =
+          kNumLayers * config.Dim() * (config.NumKVHeads() * kHeadSize);
+      wv_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kWVSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*wv_, p_weights, kWVSize * sizeof(T));
+      p_weights += kWVSize;
+    }
 
-    const size_t kWOSize =
-        kNumLayers * config.Dim() * (config.NumHeads() * kHeadSize);
-    wo_ = p_weights;
-    p_weights += kWOSize;
+    {
+      const size_t kWOSize =
+          kNumLayers * config.Dim() * (config.NumHeads() * kHeadSize);
+      wo_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kWOSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*wo_, p_weights, kWOSize * sizeof(T));
+      p_weights += kWOSize;
+    }
 
-    const size_t kRmsFFNWeightSize = kNumLayers * config.Dim();
-    rms_ffn_weight_ = p_weights;
-    p_weights += kRmsFFNWeightSize;
+    {
+      const size_t kRmsFFNWeightSize = kNumLayers * config.Dim();
+      rms_ffn_weight_ = DeviceFactory::GetDevice(device_type_)
+                            .GetMemoryAllocator()
+                            .Allocate(kRmsFFNWeightSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*rms_ffn_weight_, p_weights, kRmsFFNWeightSize * sizeof(T));
+      p_weights += kRmsFFNWeightSize;
+    }
 
-    const size_t kW1Size = kNumLayers * config.HiddenDim() * config.Dim();
-    w1_ = p_weights;
-    p_weights += kW1Size;
+    {
+      const size_t kW1Size = kNumLayers * config.HiddenDim() * config.Dim();
+      w1_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kW1Size * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*w1_, p_weights, kW1Size * sizeof(T));
+      p_weights += kW1Size;
+    }
 
-    const size_t kW2Size = kNumLayers * config.Dim() * config.HiddenDim();
-    w2_ = p_weights;
-    p_weights += kW2Size;
+    {
+      const size_t kW2Size = kNumLayers * config.Dim() * config.HiddenDim();
+      w2_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kW2Size * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*w2_, p_weights, kW2Size * sizeof(T));
+      p_weights += kW2Size;
+    }
 
-    const size_t kW3Size = kNumLayers * config.HiddenDim() * config.Dim();
-    w3_ = p_weights;
-    p_weights += kW3Size;
+    {
+      const size_t kW3Size = kNumLayers * config.HiddenDim() * config.Dim();
+      w3_ = DeviceFactory::GetDevice(device_type_)
+                .GetMemoryAllocator()
+                .Allocate(kW3Size * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*w3_, p_weights, kW3Size * sizeof(T));
+      p_weights += kW3Size;
+    }
 
-    const size_t kRmsFinalWeightSize = config.Dim();
-    rms_final_weight_ = p_weights;
-    p_weights += kRmsFinalWeightSize;
+    {
+      const size_t kRmsFinalWeightSize =
+          config.Dim() + (config.SeqLen() * config.HeadDim() / 2) +
+          (config.SeqLen() * config.HeadDim() / 2);
+      rms_final_weight_ = DeviceFactory::GetDevice(device_type_)
+                              .GetMemoryAllocator()
+                              .Allocate(kRmsFinalWeightSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*rms_final_weight_, p_weights, kRmsFinalWeightSize * sizeof(T));
+      p_weights += kRmsFinalWeightSize;
+    }
 
     p_weights += config.SeqLen() * kHeadSize /
                  2;  // Skip what used to be freq_cis_real (for RoPE)
     p_weights += config.SeqLen() * kHeadSize /
                  2;  // Skip what used to be freq_cis_imag (for RoPE)
 
-    wcls_ = shared_weights ? token_embedding_table_ : p_weights;
+    if (config.ShareWeights()) {
+      wcls_ = token_embedding_table_;
+    } else {
+      const size_t kWclsSize = config.Dim() * config.VocabSize();
+      wcls_ = DeviceFactory::GetDevice(device_type_)
+                  .GetMemoryAllocator()
+                  .Allocate(kWclsSize * sizeof(T));
+      DeviceFactory::GetDevice(device_type_)
+          .GetMemcpy()
+          .Copy(*wcls_, p_weights, kWclsSize * sizeof(T));
+    }
   }
 
   void load_weights(const std::string &ckpt_file) {
@@ -210,26 +298,40 @@ class TransformerWeights {
     T *weights_ptr = mapped_file_ + TransformerConfig::Size() / sizeof(T);
 
     load_weights(weights_ptr, config.ShareWeights());
+
+    if (mapped_file_ != nullptr) {
+      munmap(mapped_file_, file_size_);
+    }
+    if (fd_ != -1) {
+      close(fd_);
+    }
   }
 
   const TransformerConfig &config;
-  const T *token_embedding_table_;  ///< Token embedding table. Shape:
-                                    ///< [vocab_size, dim]
-  const T *rms_attn_weight_;  ///< RMS attention weight. Shape: [layer, dim]
+  std::shared_ptr<MemoryBuffer>
+      token_embedding_table_;  ///< Token embedding table. Shape:
+                               ///< [vocab_size, dim]
+  std::shared_ptr<MemoryBuffer>
+      rms_attn_weight_;  ///< RMS attention weight. Shape: [layer, dim]
 
-  const T *rms_ffn_weight_;  ///< RMS FFN weight. Shape:
-                             ///< [layer, dim]
-  const T *wq_;              ///< Query weight. Shape: [layer, dim]
-  const T *wk_;              ///< Key weight. Shape: [layer, dim]
-  const T *wv_;              ///< Value weight. Shape: [layer, dim]
-  const T *wo_;              ///< Output weight. Shape: [layer, dim]
-  const T *w1_;              ///< FFN weight 1. Shape: [layer, hidden_dim, dim]
-  const T *w2_;              ///< FFN weight 2. Shape: [layer, dim, hidden_dim]
-  const T *w3_;              ///< FFN weight 3. Shape: [layer, hidden_dim, dim]
+  std::shared_ptr<MemoryBuffer> rms_ffn_weight_;  ///< RMS FFN weight. Shape:
+                                                  ///< [layer, dim]
+  std::shared_ptr<MemoryBuffer> wq_;  ///< Query weight. Shape: [layer, dim]
+  std::shared_ptr<MemoryBuffer> wk_;  ///< Key weight. Shape: [layer, dim]
+  std::shared_ptr<MemoryBuffer> wv_;  ///< Value weight. Shape: [layer, dim]
+  std::shared_ptr<MemoryBuffer> wo_;  ///< Output weight. Shape: [layer, dim]
+  std::shared_ptr<MemoryBuffer>
+      w1_;  ///< FFN weight 1. Shape: [layer, hidden_dim, dim]
+  std::shared_ptr<MemoryBuffer>
+      w2_;  ///< FFN weight 2. Shape: [layer, dim, hidden_dim]
+  std::shared_ptr<MemoryBuffer>
+      w3_;  ///< FFN weight 3. Shape: [layer, hidden_dim, dim]
 
-  const T *rms_final_weight_;  ///< RMS final weight. Shape:
-                               ///< [dim, vocab_size]
-  const T *wcls_;              ///< Classification weight for the logit.
+  std::shared_ptr<MemoryBuffer>
+      rms_final_weight_;  ///< RMS final weight. Shape:
+                          ///< [dim, vocab_size]
+  std::shared_ptr<MemoryBuffer>
+      wcls_;  ///< Classification weight for the logit.
   ///< Shape: [dim, vocab_size]
 
   const DeviceType device_type_;

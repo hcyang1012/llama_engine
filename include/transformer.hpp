@@ -119,8 +119,12 @@ class Transformer {
         (kInputEmbedDim * config_.NumKVHeads()) / config_.NumHeads();
     const size_t kKVMul = config_.NumHeads() / config_.NumKVHeads();
 
-    auto embed = weights_.TokenEmbeddingTable() + token * kInputEmbedDim;
-    std::copy(embed, embed + kInputEmbedDim, run_state_->X().GetData());
+    auto embed = static_cast<T *>(weights_.TokenEmbeddingTable()->GetBuffer()) +
+                 token * kInputEmbedDim;
+    DeviceFactory::GetDevice(op_set_.GetDeviceType())
+        .GetMemcpy()
+        .Copy(*(run_state_->X().GetData()), (void *)embed,
+              kInputEmbedDim * sizeof(T));
 
     auto Q = run_state_->Q();
     auto X = run_state_->X();
@@ -134,7 +138,6 @@ class Transformer {
       {
         const auto kRmsAttWeight = weights_.RMSAttnWeight(layer);
         op_set_.RmsNorm<T>(X, kRmsAttWeight, XB);
-        // RmsNorm<T>::Compute(X, kRmsAttWeight, XB);
       }
 
       auto K = run_state_->K(layer, pos).ReShape({kKVDim});
@@ -173,7 +176,6 @@ class Transformer {
       {
         const auto WO =
             weights_.WO(layer).ReShape({kInputEmbedDim, kInputEmbedDim});
-
         op_set_.MatMul<T>(WO, run_state_->XB(), XB2);
       }
 
@@ -211,7 +213,10 @@ class Transformer {
     // Logits
     { op_set_.MatMul<T>(weights_.WCLS(), X, run_state_->Logits()); }
 
-    return run_state_->Logits();
+    const auto logits = run_state_->Logits();
+    volatile const T *logits_ptr =
+        static_cast<volatile T *>(logits.GetData()->GetBuffer());
+    return logits;
   }
 
  private:

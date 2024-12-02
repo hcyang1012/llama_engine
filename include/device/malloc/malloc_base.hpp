@@ -12,14 +12,13 @@
 // C++ System-Headers
 #include <cstddef>
 // Project Headers
-
+#include <device/malloc/memory_buffer_base.hpp>
 // Third-party Headers
 
 namespace llama {
 class MemoryAllocator {
  public:
-  virtual bool Allocate(void** dst, const size_t size) = 0;
-  virtual bool Free(void* ptr) = 0;
+  virtual std::shared_ptr<MemoryBuffer> Allocate(const size_t size) = 0;
 
   virtual ~MemoryAllocator() = default;
 
