@@ -13,17 +13,19 @@
 #include <cstddef>
 // Project Headers
 #include <device/malloc/malloc_base.hpp>
+#include <device/malloc/memory_buffer_cuda.hpp>
 // Third-party Headers
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 
 namespace llama {
 class MemoryAllocatorCUDA : public MemoryAllocator {
  public:
-  bool Allocate(void** dst, const size_t size) override {
-    return cudaMalloc(dst, size) == cudaSuccess;
+  std::shared_ptr<MemoryBuffer> Allocate(const size_t byte_size) override {
+    return std::make_shared<MemoryBufferCUDA>(byte_size);
   }
-  bool Free(void* ptr) override { return cudaFree(ptr) == cudaSuccess; }
+
+  std::shared_ptr<MemoryBuffer> Allocate(char* buffer, const size_t byte_size) {
+    return std::make_shared<MemoryBufferCUDA>(byte_size, buffer);
+  }
 
   ~MemoryAllocatorCUDA() = default;
 };

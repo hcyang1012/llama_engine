@@ -16,7 +16,7 @@
 // Project Headers
 #include <device/device_base.hpp>
 #include <device/malloc/malloc_cuda.hpp>
-
+#include <device/memcpy/memcpy_cuda.hpp>
 // Third-party Headers
 
 namespace llama {
@@ -25,8 +25,11 @@ class DeviceCUDA : public Device {
  public:
   MemoryAllocator& GetMemoryAllocator() override { return allocator_; }
 
+  MemcpyBase& GetMemcpy() override { return memcpy_; }
+
  private:
   MemoryAllocatorCUDA allocator_;
+  MemcpyCUDA memcpy_;
 };
 }  // namespace llama
 
