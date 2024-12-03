@@ -207,6 +207,15 @@ class Tensor {
     return *this;
   }
 
+  Tensor<T> Dump() const {
+    Tensor<T> tensor(shape, DeviceType::CPU);
+
+    DeviceFactory::GetDevice(device_type_)
+        .GetMemcpy()
+        .Copy(*tensor.GetData(), *data_, kDataBytes);
+    return tensor;
+  }
+
  private:
   size_t kDataBytes;
   Shape shape;

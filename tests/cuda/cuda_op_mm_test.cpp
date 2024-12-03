@@ -3,8 +3,8 @@
 #include <llama.hpp>
 #include <op.hpp>
 #include <random>
-
-#include "references/reference_llama2.cpp"
+#include <references/reference_llama2.cpp>
+#include <test_utility.hpp>
 class CUDAMatMulTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -59,18 +59,6 @@ class CUDAMatMulTest : public ::testing::Test {
       std::make_unique<llama::Llama2<float>>(kLlamaConfig);
   std::unique_ptr<llama::OpSet> op_set_ =
       llama::CreateOpSet(kLlamaConfig.device_type);
-
-  bool tensor_float_compare(const float* a, const float* b, const size_t size,
-                            const float epsilon) {
-    bool equal = true;
-    for (size_t i = 0; i < size; i++) {
-      if (std::abs(a[i] - b[i]) > epsilon) {
-        equal = false;
-        break;
-      }
-    }
-    return equal;
-  };
 };
 
 TEST_F(CUDAMatMulTest, CUDAMatMulTest) {
@@ -180,7 +168,7 @@ TEST_F(CUDAMatMulTest, ForwardTest) {
           .GetMemcpy()
           .Copy(*Q_host.GetData(), *transformer.GetRunState().Q().GetData());
 
-      EXPECT_TRUE(tensor_float_compare(
+      EXPECT_TRUE(llama::test::tensor_float_compare(
           ref_run_state.q, static_cast<float*>(Q_host.GetData()->GetBuffer()),
           kDim, 1e-5))
           << "Mismatch in Q";
@@ -196,7 +184,7 @@ TEST_F(CUDAMatMulTest, ForwardTest) {
           .GetMemcpy()
           .Copy(*K_host.GetData(), *K.GetData(), K.GetDataBytesSize());
 
-      EXPECT_TRUE(tensor_float_compare(
+      EXPECT_TRUE(llama::test::tensor_float_compare(
           ref_run_state.k, static_cast<float*>(K_host.GetData()->GetBuffer()),
           kKVDim, 1e-5))
           << "Mismatch in K";
@@ -212,7 +200,7 @@ TEST_F(CUDAMatMulTest, ForwardTest) {
           .GetMemcpy()
           .Copy(*V_host.GetData(), *V.GetData(), V.GetDataBytesSize());
 
-      EXPECT_TRUE(tensor_float_compare(
+      EXPECT_TRUE(llama::test::tensor_float_compare(
           ref_run_state.v, static_cast<float*>(V_host.GetData()->GetBuffer()),
           kKVDim, 1e-5))
           << "Mismatch in V";

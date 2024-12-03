@@ -124,7 +124,18 @@ class RoPE {
  private:
   static void Compute(const size_t position, const TransformerConfig& config,
                       float* Q, float* K) {
-    throw std::runtime_error("Not implemented : RoPE");
+    const size_t kDim = config.Dim();
+    const size_t kNumOfHeads = config.NumHeads();
+    const size_t kKVDim = config.KVHeadDim();
+    const size_t kHeadDim = config.HeadDim();
+    const size_t kNumKVHeads = config.NumKVHeads();
+
+    void LaunchRoPEKernel(const size_t position, const size_t num_heads,
+                          const size_t head_dim, const size_t num_kv_heads,
+                          const float freq_scale, float* Q, float* K);
+
+    LaunchRoPEKernel(position, kNumOfHeads, kHeadDim, kNumKVHeads,
+                     config.Freq(), Q, K);
   }
 };
 

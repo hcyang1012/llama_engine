@@ -17,6 +17,7 @@ include(GoogleTest)
 set(TEST_INCLUDE_PATH
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/tests
 )
 
 set(TEST_DEP_LIBS
@@ -60,4 +61,5 @@ if(USE_CUDA)
     add_cuda_test(cuda_allocator_test cuda/cuda_allocator_test.cpp)
     add_cuda_test(cuda_op_rmsnorm_test cuda/cuda_op_rmsnorm_test.cpp)
     add_cuda_test(cuda_op_mm_test cuda/cuda_op_mm_test.cpp)
+    add_cuda_test(cuda_op_rope_test cuda/cuda_op_rope_test.cpp)
 endif()

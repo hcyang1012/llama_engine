@@ -106,6 +106,46 @@ void LaunchMatMulKernel(const float* weight, const float* input, const int n,
 // End of MatMul
 //------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Start of RoPE
+//------------------------------------------------------------------------------
+
+// Additional neural net blocks (brought out from transformer function)
+__global__ void rope_kernel(const size_t position, const size_t num_heads,
+                            const size_t head_dim, const size_t num_kv_heads,
+                            const float freq_scale, float* Q, float* K) {
+  int j = threadIdx.x * 2;
+  for (int i = 0; i < num_heads; i++) {
+    float freq = 1.0f / powf(freq_scale, (float)j / (float)head_dim);
+    float val = position * freq;
+    float fcr = cosf(val);
+    float fci = sinf(val);
+
+    const size_t idx = i * head_dim + j;
+    float q0 = Q[idx];
+    float q1 = Q[idx + 1];
+    Q[idx] = q0 * fcr - q1 * fci;
+    Q[idx + 1] = q0 * fci + q1 * fcr;
+    if (i < num_kv_heads) {
+      float k0 = K[idx];
+      float k1 = K[idx + 1];
+      K[idx] = k0 * fcr - k1 * fci;
+      K[idx + 1] = k0 * fci + k1 * fcr;
+    }
+  }
+}
+
+void LaunchRoPEKernel(const size_t position, const size_t num_heads,
+                      const size_t head_dim, const size_t num_kv_heads,
+                      const float freq_scale, float* Q, float* K) {
+  rope_kernel<<<1, head_dim / 2>>>(position, num_heads, head_dim, num_kv_heads,
+                                   freq_scale, Q, K);
+}
+
+//------------------------------------------------------------------------------
+// End of RoPE
+//------------------------------------------------------------------------------
+
 }  // namespace CudaOps
 
 }  // namespace llama
