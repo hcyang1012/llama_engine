@@ -16,6 +16,7 @@
 // Project Headers
 
 #include <config.hpp>
+#include <run_state.hpp>
 #include <tensor.hpp>
 // Third-party Headers
 #include <glog/logging.h>
@@ -127,6 +128,12 @@ class OpSet {
     return ArgMaxImpl(&input, typeid(T));
   }
 
+  template <typename T>
+  void MultiAttention(const size_t layer, const size_t pos,
+                      const TransformerConfig& config, RunState<T>& run_state) {
+    MultiAttentionImpl(layer, pos, config, &run_state, typeid(T));
+  }
+
   virtual DeviceType GetDeviceType() const = 0;
 
   virtual ~OpSet() = default;
@@ -158,6 +165,11 @@ class OpSet {
                               const std::type_info& type) = 0;
 
   virtual size_t ArgMaxImpl(const void* input, const std::type_info& type) = 0;
+
+  virtual void MultiAttentionImpl(const size_t layer, const size_t pos,
+                                  const TransformerConfig& config,
+                                  void* run_state,
+                                  const std::type_info& type) = 0;
 };
 
 }  // namespace llama

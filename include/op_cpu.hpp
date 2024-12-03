@@ -350,6 +350,86 @@ class ArgMax {
  private:
 };
 
+template <typename T>
+class MultiAttention {
+ public:
+  static void Compute(const size_t layer, const size_t pos,
+                      const TransformerConfig& config, RunState<T>& run_state) {
+    const size_t kNumHeads = config.NumHeads();
+    const size_t kNumKVHeads = config.NumKVHeads();
+    const size_t kKVMul = kNumKVHeads / kNumHeads;
+    const size_t kInputEmbedDim = config.Dim();
+    const size_t kSeqLen = config.SeqLen();
+    const size_t kHiddenDim = config.HiddenDim();
+
+    for (size_t head_idx = 0; head_idx < kNumHeads; ++head_idx) {
+      const size_t kKVHeadIdx = head_idx / kKVMul;
+      auto Q = run_state.Q(head_idx);
+      auto K_layer = run_state.K(layer);
+      auto V_layer = run_state.V(layer);
+
+      auto XB = run_state.XB(head_idx);
+      ComputeHead(Q, K_layer, V_layer, config, pos, kKVHeadIdx, XB);
+    }
+  }
+
+ private:
+  /**
+   * @brief
+   *
+   * @param Q  (kPerHeadDim)
+   * @param K (kHeadDim, Seq_Len)
+   * @param V (kHeadDim, Seq_Len)
+   * @param config
+   * @param pos
+   * @param header_idx
+   * @param output {kPerHeadDim}
+   */
+  static void ComputeHead(const Tensor<T>& Q, const Tensor<T>& K,
+                          const Tensor<T>& V, const TransformerConfig& config,
+                          const size_t pos, const size_t header_idx,
+                          Tensor<T>& output) {
+    const size_t kPerHeadDim = config.Dim() / config.NumHeads();
+    const size_t kKVHeadDim =
+        (config.Dim() * config.NumKVHeads()) / config.NumHeads();
+    DCHECK_EQ(Q.GetShape()[0], kPerHeadDim);
+
+    DCHECK_EQ(K.GetShape()[0], kPerHeadDim);
+    DCHECK_EQ(K.GetShape()[1], config.NumKVHeads());
+    DCHECK_EQ(V.GetShape()[2], config.SeqLen());
+
+    DCHECK_EQ(V.GetShape()[0], kPerHeadDim);
+    DCHECK_EQ(V.GetShape()[1], config.NumKVHeads());
+    DCHECK_EQ(V.GetShape()[2], config.SeqLen());
+
+    Tensor<T> attention_scores({pos + 1}, DeviceType::CPU);
+    for (size_t t = 0; t <= pos; ++t) {
+      float score = 0.0f;
+      for (size_t i = 0; i < kPerHeadDim; ++i) {
+        score += (Q.at(i) * K.at(i, header_idx, t));
+      }
+      score /= sqrtf(kPerHeadDim);
+      attention_scores[{t}] = score;
+    }
+
+    // Calculate the attention score and store it back to the same buffer
+    SoftMax<T>::Compute(attention_scores, attention_scores);
+
+    // Weighted sum of the values, store back into output
+    std::fill(static_cast<T*>(output.GetData()->GetBuffer()),
+              static_cast<T*>(output.GetData()->GetBuffer()) +
+                  output.GetShape().GetSize(),
+              static_cast<T>(0));
+    for (size_t t = 0; t <= pos; ++t) {
+      const float a = attention_scores[t];
+      for (size_t i = 0; i < kPerHeadDim; ++i) {
+        // output[{i}] += (a * V[{i, header_idx, t}]);
+        output[{i}] += (a * V.at(i, header_idx, t));
+      }
+    }
+  }
+};
+
 }  // namespace CpuOps
 
 }  // namespace llama
