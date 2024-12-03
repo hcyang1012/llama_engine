@@ -18,10 +18,8 @@
 namespace llama {
 class MemcpyCPU : public MemcpyBase {
  public:
-  void Copy(MemoryBuffer &dst, const MemoryBuffer &src) {
-    DCHECK_EQ(dst.GetSizeBytes(), src.GetSizeBytes())
-        << "Size of the destination and source buffer does not match";
-
+  void Copy(MemoryBuffer &dst, const MemoryBuffer &src,
+            const size_t bytes_size) override {
     DCHECK_EQ(dst.GetDeviceType(), DeviceType::CPU)
         << "Destination buffer is not on CPU";
     DCHECK_EQ(src.GetDeviceType(), DeviceType::CPU)
@@ -32,7 +30,7 @@ class MemcpyCPU : public MemcpyBase {
               static_cast<char *>(dst.GetBuffer()));
   }
 
-  void Copy(MemoryBuffer &dst, const void *src, const size_t size) {
+  void Copy(MemoryBuffer &dst, const void *src, const size_t size) override {
     DCHECK_EQ(dst.GetDeviceType(), DeviceType::CPU)
         << "Destination buffer is not on CPU";
 

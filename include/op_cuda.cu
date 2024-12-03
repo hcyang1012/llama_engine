@@ -31,6 +31,9 @@ inline size_t IDivCeil(size_t a, size_t b) { return (a + b - 1) / b; }
 constexpr size_t kNumThreadsLarge = 1024;
 constexpr size_t kNumThreadsSmall = 64;
 
+//------------------------------------------------------------------------------
+// Start of RMSNormq
+//------------------------------------------------------------------------------
 __global__ void rmsnorm_kernel(const float* x, const float* weight,
                                const size_t size, float* o,
                                const size_t elementsPerThread) {
@@ -70,6 +73,38 @@ void LaunchRmsNormKernel(const float* x, const float* weight, size_t size,
   rmsnorm_kernel<<<1, kNumThreadsLarge>>>(x, weight, size, o,
                                           elementsPerThread);
 }
+
+//------------------------------------------------------------------------------
+// End of RMSNormq
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Start of MatMul
+//------------------------------------------------------------------------------
+
+// naive CUDA kernel function to perform matrix multiplication.
+// one output per warp so that we can parallelize the dot product across the
+// warp Note that ~95% of total time is spent here, so optimizing this is
+// important
+__global__ void matmul_kernel(const float* weight, const float* input,
+                              const int n, const int d, float* out) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= d) return;
+
+  float sum = 0.0f;
+  for (int j = 0; j < n; j++) {
+    sum += weight[i * n + j] * input[j];
+  }
+  out[i] = sum;
+}
+void LaunchMatMulKernel(const float* weight, const float* input, const int n,
+                        const int d, float* out) {
+  matmul_kernel<<<IDivCeil(d, kNumThreadsSmall), kNumThreadsSmall>>>(
+      weight, input, n, d, out);
+}
+//------------------------------------------------------------------------------
+// End of MatMul
+//------------------------------------------------------------------------------
 
 }  // namespace CudaOps
 

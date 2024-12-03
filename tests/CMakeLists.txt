@@ -46,15 +46,18 @@ add_test_executable(forward_test forward_test.cpp)
 add_test_executable(op_argmax_test op_argmax_test.cpp)
 add_test_executable(generate_test generate_test.cpp)
 
+function (add_cuda_test target_name)
+    add_test_executable(${target_name} ${ARGN})
+    append_cuda_deps(${target_name})
+    target_link_libraries(${target_name} PRIVATE op_cuda)
+endfunction()
+
 # CUDA tests
 if(USE_CUDA)
 
     build_cuda_file(op_cuda ${CMAKE_SOURCE_DIR}/include/op_cuda.cu)
 
-    add_test_executable(cuda_allocator_test cuda/cuda_allocator_test.cpp)
-    append_cuda_deps(cuda_allocator_test)
-    
-    add_test_executable(cuda_op_rmsnorm_test cuda/cuda_op_rmsnorm_test.cpp)
-    append_cuda_deps(cuda_op_rmsnorm_test)
-    target_link_libraries(cuda_op_rmsnorm_test PRIVATE op_cuda)
+    add_cuda_test(cuda_allocator_test cuda/cuda_allocator_test.cpp)
+    add_cuda_test(cuda_op_rmsnorm_test cuda/cuda_op_rmsnorm_test.cpp)
+    add_cuda_test(cuda_op_mm_test cuda/cuda_op_mm_test.cpp)
 endif()
