@@ -13,6 +13,7 @@
 #include <glog/logging.h>
 
 #include <cmath>
+#include <ostream>
 #include <vector>
 // For numeric_limits
 #include <limits>
@@ -25,6 +26,7 @@
 
 namespace llama {
 namespace CudaOps {
+
 template <typename T>
 class RmsNorm {
  public:
@@ -45,7 +47,9 @@ class RmsNorm {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
     void LaunchRmsNormKernel(const float* x, const float* weight, size_t size,
                              float* o, cudaStream_t stream = nullptr);
-
+    // Currently, only float is supported
+    DCHECK_EQ(typeid(T).name(), typeid(float).name())
+        << "Only float is supported";
     LaunchRmsNormKernel(x, weight, size, o);
   }
 };
@@ -96,7 +100,12 @@ class MatMul {
     DCHECK_GE(d, 0) << "Size 'd' should be greater than or equal to 0";
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
-    throw std::runtime_error("Not implemented : MatMul");
+    // Currently, only float is supported
+    DCHECK_EQ(typeid(T).name(), typeid(float).name())
+        << "Only float is supported";
+    void LaunchMatMulKernel(const float* weight, const float* input,
+                            const int n, const int d, float* out);
+    LaunchMatMulKernel(weight, input, n, d, out);
   }
 };
 

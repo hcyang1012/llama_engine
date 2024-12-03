@@ -14,11 +14,19 @@
 // Project Headers
 #include <device/malloc/memory_buffer_base.hpp>
 // Third-party Headers
+#include <glog/logging.h>
 
 namespace llama {
 class MemcpyBase {
  public:
-  virtual void Copy(MemoryBuffer& dst, const MemoryBuffer& src) = 0;
+  virtual void Copy(MemoryBuffer& dst, const MemoryBuffer& src,
+                    const size_t bytes_size) = 0;
   virtual void Copy(MemoryBuffer& dst, const void* src, const size_t size) = 0;
+
+  virtual void Copy(MemoryBuffer& dst, const MemoryBuffer& src) {
+    DCHECK_EQ(dst.GetSizeBytes(), src.GetSizeBytes())
+        << "Size of the destination and source buffer does not match";
+    Copy(dst, src, src.GetSizeBytes());
+  }
 };
 }  // namespace llama

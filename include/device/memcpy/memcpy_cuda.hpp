@@ -21,24 +21,21 @@
 namespace llama {
 class MemcpyCUDA : public MemcpyBase {
  public:
-  void Copy(MemoryBuffer &dst, const MemoryBuffer &src) {
-    DCHECK_EQ(dst.GetSizeBytes(), src.GetSizeBytes())
-        << "Size of the destination and source buffer does not match";
-
+  void Copy(MemoryBuffer &dst, const MemoryBuffer &src,
+            const size_t bytes_size) override {
     if (dst.GetDeviceType() == DeviceType::CPU &&
         src.GetDeviceType() == DeviceType::CUDA) {
-      cudaMemcpy(dst.GetBuffer(), src.GetBuffer(), src.GetSizeBytes(),
+      cudaMemcpy(dst.GetBuffer(), src.GetBuffer(), bytes_size,
                  cudaMemcpyDeviceToHost);
     } else if (dst.GetDeviceType() == DeviceType::CUDA &&
                src.GetDeviceType() == DeviceType::CPU) {
-      cudaMemcpy(dst.GetBuffer(), src.GetBuffer(), src.GetSizeBytes(),
+      cudaMemcpy(dst.GetBuffer(), src.GetBuffer(), bytes_size,
                  cudaMemcpyHostToDevice);
     } else {
       LOG(FATAL) << "Unsupported device type from CPU to CPU";
     }
   }
-
-  void Copy(MemoryBuffer &dst, const void *src, const size_t size) {
+  void Copy(MemoryBuffer &dst, const void *src, const size_t size) override {
     DCHECK_EQ(dst.GetSizeBytes(), size)
         << "Size of the destination and source buffer does not match";
     DCHECK_EQ(dst.GetDeviceType(), DeviceType::CUDA)

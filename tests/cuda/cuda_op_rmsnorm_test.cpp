@@ -4,7 +4,7 @@
 #include <op.hpp>
 #include <random>
 #include <references/reference_llama2.cpp>
-class CUDA_RmsNormTest : public ::testing::Test {
+class CUDARmsNormTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // code here will execute just before the test ensues
@@ -46,7 +46,7 @@ class CUDA_RmsNormTest : public ::testing::Test {
       llama::CreateOpSet(kLlamaConfig.device_type);
 };
 
-TEST_F(CUDA_RmsNormTest, RmsNormTest) {
+TEST_F(CUDARmsNormTest, RmsNormTest) {
   const size_t kSize = 4;
   std::vector<float> expected_o(kSize);
   llama::Tensor<float> actual(x_->GetShape(), kLlamaConfig.device_type);
@@ -78,7 +78,7 @@ TEST_F(CUDA_RmsNormTest, RmsNormTest) {
                  static_cast<float*>(out_buffer_host.GetData()->GetBuffer())));
 }
 
-TEST_F(CUDA_RmsNormTest, ForwardTest) {
+TEST_F(CUDARmsNormTest, ForwardTest) {
   auto& transformer = llama2_->GetTransformer();
   const auto& tokenizer = llama2_->GetTokenizer();
   const size_t kNumOfLayers = transformer.GetConfig().NumLayers();
