@@ -191,18 +191,20 @@ __device__ void softmax_gpu(float* __restrict__ x, int size) {
 }
 
 __global__ void multi_head_attention_kernel(
-    int pos, int seq_len, float* sq, float* satt, float* sxb, float* key_cache,
-    float* value_cache, int kv_dim, int kv_mul, int head_size, int loff) {
+    const size_t pos, const size_t seq_len, const float* sq,
+    const float* key_cache_layer, const float* value_cache_layer,
+    const size_t kv_dim, const size_t kv_mul, const size_t head_size,
+    float* satt, float* sxb) {
   int h = blockIdx.x;
   // get the query vector for this head
-  float* q = sq + h * head_size;
+  const float* q = sq + h * head_size;
   // attention scores for this head
   float* att = satt + h * seq_len;
   // iterate over all timesteps, including the current one
   // In CUDA, each thread does a small portion of the calc
   for (int t = threadIdx.x; t <= pos; t += blockDim.x) {
     // get the key vector for this head and at this timestep
-    float* k = key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+    const float* k = key_cache_layer + t * kv_dim + (h / kv_mul) * head_size;
     // calculate the attention score as the dot product of q and k
     float score = 0.0f;
     for (int i = 0; i < head_size; i++) {
@@ -229,7 +231,8 @@ __global__ void multi_head_attention_kernel(
     float val = 0.0f;
     for (int t = 0; t <= pos; t++) {
       // get the value vector for this head and at this timestep
-      float* v = value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+      const float* v =
+          value_cache_layer + t * kv_dim + (h / kv_mul) * head_size;
       // get the attention weight for this timestep
       float a = att[t];
       val += a * v[i];
@@ -238,14 +241,15 @@ __global__ void multi_head_attention_kernel(
   }
 }
 
-// void LaunchMultiHeadAttention(const size_t pos, const size_t seq_len,
-//                               const float* Q_layer, float* satt, float* sxb,
-//                               float* key_cache, float* value_cache, int
-//                               kv_dim, int kv_mul, int head_size, int loff) {
-//   multi_head_attention_kernel<<<kv_mul, kNumThreadsLarge>>>(
-//       pos, seq_len, sq, satt, sxb, key_cache, value_cache, kv_dim, kv_mul,
-//       head_size, loff);
-// }
+void LaunchMultiHeadAttentionKernel(
+    const size_t pos, const size_t seq_len, const float* sq,
+    const float* key_cache_layer, const float* value_cache_layer,
+    const size_t kv_dim, const size_t kv_mul, const size_t num_heads,
+    const size_t head_size, float* satt, float* sxb) {
+  multi_head_attention_kernel<<<num_heads, kNumThreadsLarge>>>(
+      pos, seq_len, sq, key_cache_layer, value_cache_layer, kv_dim, kv_mul,
+      head_size, satt, sxb);
+}
 
 // void multi_head_attention(int pos, Config* p, RunState* s, int kv_dim,
 //                           int kv_mul, int head_size, int loff) {

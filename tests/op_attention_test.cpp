@@ -179,15 +179,17 @@ TEST_F(AttentionTest, ForwardTest) {
     // Attention
     {
       const size_t kPerHeadDim = kDim / transformer.GetConfig().NumHeads();
+#if 0
       for (size_t header_idx = 0; header_idx < kRefConfig.n_heads;
            ++header_idx) {
-        const size_t kKVHeadIdx = header_idx / kRefConfig.n_kv_heads;
+        const size_t kKVMul = kRefConfig.n_kv_heads / kRefConfig.n_heads;
+        const size_t kKVHeadIdx = header_idx / kKVMul;
         float *q = ref_run_state.q + header_idx * kRefHeadSize;
         float *att = ref_run_state.att + header_idx * kRefConfig.seq_len;
 
         for (int t = 0; t <= kPos; t++) {
           float *k = ref_run_state.key_cache + kRefLayerOffset + t * kRefKVDim +
-                     (header_idx / kRefKVDim) * kRefHeadSize;
+                     (header_idx / kKVMul) * kRefHeadSize;
           float score = 0.0f;
           for (int i = 0; i < kRefHeadSize; i++) {
             score += q[i] * k[i];
@@ -202,7 +204,7 @@ TEST_F(AttentionTest, ForwardTest) {
         memset(xb, 0, kRefHeadSize * sizeof(float));
         for (int t = 0; t <= kPos; t++) {
           float *v = ref_run_state.value_cache + kRefLayerOffset +
-                     t * kRefKVDim + (header_idx / kRefKVDim) * kRefHeadSize;
+                     t * kRefKVDim + (header_idx / kKVMul) * kRefHeadSize;
           float a = att[t];
           for (int i = 0; i < kRefHeadSize; i++) {
             xb[i] += a * v[i];
@@ -222,6 +224,54 @@ TEST_F(AttentionTest, ForwardTest) {
                        static_cast<float *>(output.GetData()->GetBuffer())))
             << "Compare for header #" << header_idx << " failed.";
       }
+#else
+      for (size_t header_idx = 0; header_idx < kRefConfig.n_heads;
+           ++header_idx) {
+        const size_t kKVMul = kRefConfig.n_kv_heads / kRefConfig.n_heads;
+        const size_t kKVHeadIdx = header_idx / kKVMul;
+        float *q = ref_run_state.q + header_idx * kRefHeadSize;
+        float *att = ref_run_state.att + header_idx * kRefConfig.seq_len;
+
+        for (int t = 0; t <= kPos; t++) {
+          float *k = ref_run_state.key_cache + kRefLayerOffset + t * kRefKVDim +
+                     (header_idx / kKVMul) * kRefHeadSize;
+          float score = 0.0f;
+          for (int i = 0; i < kRefHeadSize; i++) {
+            score += q[i] * k[i];
+          }
+          score /= sqrtf(kRefHeadSize);
+          att[t] = score;
+        }
+
+        reference_llama2::softmax(att, kPos + 1);
+
+        float *xb = ref_run_state.xb + header_idx * kRefHeadSize;
+        memset(xb, 0, kRefHeadSize * sizeof(float));
+        for (int t = 0; t <= kPos; t++) {
+          float *v = ref_run_state.value_cache + kRefLayerOffset +
+                     t * kRefKVDim + (header_idx / kKVMul) * kRefHeadSize;
+          float a = att[t];
+          for (int i = 0; i < kRefHeadSize; i++) {
+            xb[i] += a * v[i];
+          }
+        }
+      }
+      // Multi head attention
+      op_set_->MultiAttention<float>(layer, kPos, transformer.GetConfig(),
+                                     transformer.GetRunState());
+
+      // Compare the output
+      for (size_t header_idx = 0; header_idx < kRefConfig.n_heads;
+           ++header_idx) {
+        auto xb = ref_run_state.xb + header_idx * kRefHeadSize;
+        auto output = transformer.GetRunState().XB(header_idx);
+        EXPECT_TRUE(
+            std::equal(xb, xb + kRefHeadSize,
+                       static_cast<float *>(output.GetData()->GetBuffer())))
+            << "Compare for header #" << header_idx << " failed.";
+      }
+
+#endif
     }
   }
 }

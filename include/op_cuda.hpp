@@ -271,6 +271,47 @@ class ArgMax {
  private:
 };
 
+template <typename T>
+class MultiAttention {
+ public:
+  static void Compute(const size_t layer, const size_t pos,
+                      const TransformerConfig& config, RunState<T>& run_state) {
+    const size_t kNumHeads = config.NumHeads();
+    const size_t kNumKVHeads = config.NumKVHeads();
+    const size_t kKVMul = kNumKVHeads / kNumHeads;
+    const size_t kInputEmbedDim = config.Dim();
+    const size_t kSeqLen = config.SeqLen();
+    const size_t kHiddenDim = config.HiddenDim();
+
+    auto K_layer = run_state.K(layer);
+    auto V_layer = run_state.V(layer);
+
+    void LaunchMultiHeadAttentionKernel(
+        const size_t pos, const size_t seq_len, const float* sq,
+        const float* key_cache_layer, const float* value_cache_layer,
+        const size_t kv_dim, const size_t kv_mul, const size_t num_heads,
+        const size_t head_size, float* satt, float* sxb);
+
+    LaunchMultiHeadAttentionKernel(
+        pos,      // pos
+        kSeqLen,  // seq_len,
+        static_cast<const float*>(run_state.Q().GetData()->GetBuffer()),  // sq,
+        static_cast<const float*>(
+            K_layer.GetData()->GetBuffer()),  // key_cache_layer,
+        static_cast<const float*>(
+            V_layer.GetData()->GetBuffer()),  // value_cache_layer,
+        kInputEmbedDim,                       // kv_dim,
+        kKVMul,                               // kv_mul,
+        kNumHeads,                            // num_heads,
+        kInputEmbedDim / kNumHeads,           // head_size,
+        static_cast<float*>(run_state.att().GetData()->GetBuffer()),  // satt,
+        static_cast<float*>(run_state.XB().GetData()->GetBuffer())    // sxb
+    );
+  }
+
+ private:
+};
+
 }  // namespace CudaOps
 
 }  // namespace llama
