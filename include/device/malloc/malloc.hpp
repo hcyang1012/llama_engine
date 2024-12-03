@@ -28,7 +28,7 @@ MemoryAllocator& GetMemoryAllocator(const DeviceType type) {
       static MemoryAllocatorCPU allocator;
       return allocator;
     }
-#if defined(__CUDACC__)
+#if defined(USE_CUDA)
     case DeviceType::CUDA: {
       static MemoryAllocatorCUDA allocator;
       return allocator;

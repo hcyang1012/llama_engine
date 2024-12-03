@@ -165,7 +165,7 @@ class Encoder {
         try_merge(3);
         if (best_it == prompt_tokens_.end()) {
           break;
-        };
+        }
         merged_count = 3;
       }
 
