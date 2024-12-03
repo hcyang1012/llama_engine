@@ -362,14 +362,17 @@ class MultiAttention {
     const size_t kSeqLen = config.SeqLen();
     const size_t kHiddenDim = config.HiddenDim();
 
+    auto K_layer = run_state.K(layer);
+    auto V_layer = run_state.V(layer);
+
     for (size_t head_idx = 0; head_idx < kNumHeads; ++head_idx) {
       const size_t kKVHeadIdx = head_idx / kKVMul;
       auto Q = run_state.Q(head_idx);
-      auto K_layer = run_state.K(layer);
-      auto V_layer = run_state.V(layer);
 
       auto XB = run_state.XB(head_idx);
-      ComputeHead(Q, K_layer, V_layer, config, pos, kKVHeadIdx, XB);
+      auto attention_scores = run_state.Att(head_idx, pos + 1);
+      ComputeHead(Q, K_layer, V_layer, config, pos, kKVHeadIdx,
+                  attention_scores, XB);
     }
   }
 
@@ -385,9 +388,9 @@ class MultiAttention {
    * @param header_idx
    * @param output {kPerHeadDim}
    */
-  static void ComputeHead(const Tensor<T>& Q, const Tensor<T>& K,
-                          const Tensor<T>& V, const TransformerConfig& config,
-                          const size_t pos, const size_t header_idx,
+  static void ComputeHead(const Tensor<T>& Q, Tensor<T>& K, const Tensor<T>& V,
+                          const TransformerConfig& config, const size_t pos,
+                          const size_t header_idx, Tensor<T>& attention_scores,
                           Tensor<T>& output) {
     const size_t kPerHeadDim = config.Dim() / config.NumHeads();
     const size_t kKVHeadDim =
@@ -402,7 +405,6 @@ class MultiAttention {
     DCHECK_EQ(V.GetShape()[1], config.NumKVHeads());
     DCHECK_EQ(V.GetShape()[2], config.SeqLen());
 
-    Tensor<T> attention_scores({pos + 1}, DeviceType::CPU);
     for (size_t t = 0; t <= pos; ++t) {
       float score = 0.0f;
       for (size_t i = 0; i < kPerHeadDim; ++i) {

@@ -172,9 +172,10 @@ class RunState {
   }
 
   Tensor<T>& Att() { return *att; }
-  Tensor<T> Att(const size_t head_idx) {
-    return Tensor<T>(att->GetData() + head_idx * config_.SeqLen(),
-                     {static_cast<size_t>(config_.SeqLen())});
+  Tensor<T> Att(const size_t head_idx, const size_t size) {
+    return Tensor<T>(
+        att->GetData()->Clone(head_idx * config_.SeqLen() * sizeof(T)), {size},
+        device_type_);
   }
   Tensor<T>& Logits() { return *logits; }
   Tensor<T>& KeyCache() { return *key_cache; }
