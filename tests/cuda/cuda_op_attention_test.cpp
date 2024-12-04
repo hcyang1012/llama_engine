@@ -4,27 +4,12 @@
 #include <memory>
 #include <random>
 #include <references/reference_llama2.cpp>
-class AttentionTest : public ::testing::Test {
+#include <test_utility.hpp>
+class CUDAAttentionTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    llama::LlamaConfig llama_config = {kChkPointPath, kTokenizerBinPath,
-                                       llama::DeviceType::CPU};
-    llama2_ = std::make_unique<llama::Llama2<float>>(llama_config);
+    llama2_ = std::make_unique<llama::Llama2<float>>(kLlamaConfig);
     // code here will execute just before the test ensues
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
-
-    const size_t kSize = 4;
-    x_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
-                                                llama_config.device_type);
-    weight_ = std::make_unique<llama::Tensor<float>>(llama::Shape({kSize}),
-                                                     llama_config.device_type);
-
-    for (size_t i = 0; i < kSize; i++) {
-      (*x_)[i] = dis(gen);
-      (*weight_)[i] = dis(gen);
-    }
   }
 
   void TearDown() override {
@@ -32,22 +17,19 @@ class AttentionTest : public ::testing::Test {
     // ok to through exceptions from here if need be
   }
 
-  std::unique_ptr<llama::Tensor<float>> x_;
-  std::unique_ptr<llama::Tensor<float>> weight_;
-
   const std::string kChkPointPath = "stories15M.bin";
   const std::string kTokenizerBinPath = "tokenizer.bin";
   const llama::LlamaConfig kLlamaConfig = {
       .checkpoint_path = kChkPointPath.c_str(),
       .tokenizer_path = kTokenizerBinPath.c_str(),
-      .device_type = llama::DeviceType::CPU};
+      .device_type = llama::DeviceType::CUDA};
   std::unique_ptr<llama::Llama2<float>> llama2_ =
       std::make_unique<llama::Llama2<float>>(kLlamaConfig);
   std::unique_ptr<llama::OpSet> op_set_ =
       llama::CreateOpSet(kLlamaConfig.device_type);
 };
 
-TEST_F(AttentionTest, ForwardTest) {
+TEST_F(CUDAAttentionTest, ForwardTest) {
   auto &transformer = llama2_->GetTransformer();
   const auto &tokenizer = llama2_->GetTokenizer();
   const size_t kNumOfLayers = transformer.GetConfig().NumLayers();
@@ -64,16 +46,20 @@ TEST_F(AttentionTest, ForwardTest) {
   const size_t kPos = 0;  // First position
   llama::Encoder<float> encoder(tokenizer, kPrompt, true, false,
                                 llama::SpecialTokensLlama2());
-  auto content_row =
+  auto embed =
       static_cast<float *>(kWeights.TokenEmbeddingTable()->GetBuffer()) +
       kPos * kDim;
-  llama::GetMemcpy(kLlamaConfig.device_type)
-      .Copy(*(transformer.GetRunState().X().GetData()), (void *)content_row,
-            kDim * sizeof(float));
-  // std::copy(content_row, content_row + kDim,
-  //           transformer.GetRunState().X().GetData());
 
-  std::copy(content_row, content_row + kDim, ref_run_state.x);
+  llama::DeviceFactory::GetDevice(kLlamaConfig.device_type)
+      .GetMemcpy()
+      .Copy(*(llama2_->GetTransformer().GetRunState().X().GetData()),
+            (void *)embed, kDim * sizeof(float));
+
+  auto X_host_dump = llama2_->GetTransformer().GetRunState().X().Dump();
+
+  float *content_row =
+      ref_transformer.weights.token_embedding_table + kPos * kDim;
+  memcpy(ref_run_state.x, content_row, kDim * sizeof(*ref_run_state.x));
 
   const auto &kRefConfig = ref_transformer.config;
   const size_t kRefKVDim =
@@ -93,10 +79,10 @@ TEST_F(AttentionTest, ForwardTest) {
                               kWeights.RMSAttnWeight(layer),
                               transformer.GetRunState().XB());
 
-      EXPECT_TRUE(std::equal(
-          ref_run_state.xb, ref_run_state.xb + kDim,
-          static_cast<float *>(
-              transformer.GetRunState().XB().GetData()->GetBuffer())));
+      auto XB = transformer.GetRunState().XB().Dump();
+      EXPECT_TRUE(llama::test::tensor_float_compare(
+          ref_run_state.xb, static_cast<float *>(XB.GetData()->GetBuffer()),
+          kDim, 1e-5));
     }
 
     const int kRefLayerOffset = layer * kRefConfig.seq_len * kRefKVDim;
@@ -132,20 +118,18 @@ TEST_F(AttentionTest, ForwardTest) {
           kWeights.WV(layer).ReShape(llama::Shape({kDim, kRefKVDim})),
           transformer.GetRunState().XB(), V);
 
-      EXPECT_TRUE(std::equal(
-          ref_run_state.q, ref_run_state.q + kDim,
+      EXPECT_TRUE(llama::test::tensor_float_compare(
+          ref_run_state.q,
           static_cast<float *>(
-              transformer.GetRunState().Q().GetData()->GetBuffer())));
-      EXPECT_TRUE(std::equal(ref_run_state.k, ref_run_state.k + kRefKVDim,
-                             static_cast<float *>(transformer.GetRunState()
-                                                      .K(layer, kPos)
-                                                      .GetData()
-                                                      ->GetBuffer())));
-      EXPECT_TRUE(std::equal(ref_run_state.v, ref_run_state.v + kRefKVDim,
-                             static_cast<float *>(transformer.GetRunState()
-                                                      .V(layer, kPos)
-                                                      .GetData()
-                                                      ->GetBuffer())));
+              transformer.GetRunState().Q().Dump().GetData()->GetBuffer()),
+          kDim, 1e-5))
+          << "Mismatch in Q at layer " << layer;
+      EXPECT_TRUE(llama::test::tensor_float_compare(
+          ref_run_state.k,
+          static_cast<float *>(K.Dump().GetData()->GetBuffer()), kKVDim, 1e-5));
+      EXPECT_TRUE(llama::test::tensor_float_compare(
+          ref_run_state.v,
+          static_cast<float *>(V.Dump().GetData()->GetBuffer()), kKVDim, 1e-5));
     }
 
     const size_t kRefHeadSize = kDim / kRefConfig.n_heads;
@@ -172,8 +156,10 @@ TEST_F(AttentionTest, ForwardTest) {
       auto K = transformer.GetRunState().K(layer, kPos);
       op_set_->RoPE<float>(kPos, transformer.GetConfig(), Q, K);
 
-      EXPECT_TRUE(std::equal(ref_run_state.q, ref_run_state.q + kDim,
-                             static_cast<float *>(Q.GetData()->GetBuffer())));
+      EXPECT_TRUE(llama::test::tensor_float_compare(
+          ref_run_state.q,
+          static_cast<float *>(Q.Dump().GetData()->GetBuffer()), kDim, 1e-5))
+          << "Mismatch in Q at layer " << layer;
     }
 
     // Attention
@@ -264,13 +250,12 @@ TEST_F(AttentionTest, ForwardTest) {
       for (size_t header_idx = 0; header_idx < kRefConfig.n_heads;
            ++header_idx) {
         auto xb = ref_run_state.xb + header_idx * kRefHeadSize;
-        auto output = transformer.GetRunState().XB(header_idx);
-        EXPECT_TRUE(
-            std::equal(xb, xb + kRefHeadSize,
-                       static_cast<float *>(output.GetData()->GetBuffer())))
+        auto output = transformer.GetRunState().XB(header_idx).Dump();
+        EXPECT_TRUE(llama::test::tensor_float_compare(
+            xb, static_cast<float *>(output.GetData()->GetBuffer()),
+            kRefHeadSize, 1e-5))
             << "Compare for header #" << header_idx << " failed.";
       }
-
 #endif
     }
   }

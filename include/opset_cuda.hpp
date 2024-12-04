@@ -124,6 +124,17 @@ class OpSetCuda : public OpSet {
     }
   }
 
+  void MultiAttentionImpl(const size_t layer, const size_t pos,
+                          const TransformerConfig& config, void* run_state,
+                          const std::type_info& type) override {
+    if (type == typeid(float)) {
+      CudaOps::MultiAttention<float>::Compute(
+          layer, pos, config, *static_cast<RunState<float>*>(run_state));
+    } else {
+      LOG(FATAL) << "Unsupported data type";
+    }
+  }
+
  private:
 };
 

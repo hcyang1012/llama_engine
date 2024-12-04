@@ -114,16 +114,18 @@ class RunState {
   }
 
   Tensor<T> K(const size_t layer, const size_t pos, const size_t head_idx) {
-    return Tensor<T>(key_cache->GetData() +
-                         (layer * (static_cast<size_t>(config_.HeadDim()) *
-                                   static_cast<size_t>(config_.NumKVHeads()) *
-                                   static_cast<size_t>(config_.SeqLen()))) +
-                         (pos * (static_cast<size_t>(config_.HeadDim()) *
-                                 static_cast<size_t>(config_.NumKVHeads()))) +
-                         (head_idx * (static_cast<size_t>(config_.HeadDim()))),
-                     {
-                         static_cast<size_t>(config_.HeadDim()),
-                     });
+    return Tensor<T>(
+        key_cache->GetData()->Clone(
+            ((layer * (static_cast<size_t>(config_.HeadDim()) *
+                       static_cast<size_t>(config_.NumKVHeads()) *
+                       static_cast<size_t>(config_.SeqLen()))) +
+             (pos * (static_cast<size_t>(config_.HeadDim()) *
+                     static_cast<size_t>(config_.NumKVHeads()))) +
+             (head_idx * (static_cast<size_t>(config_.HeadDim())))) *
+            sizeof(T)),
+        {
+            static_cast<size_t>(config_.HeadDim()),
+        });
   }
 
   Tensor<T> V() {
@@ -158,23 +160,26 @@ class RunState {
   }
 
   Tensor<T> V(const size_t layer, const size_t pos, const size_t head_idx) {
-    return Tensor<T>(value_cache->GetData() +
-                         (layer * (static_cast<size_t>(config_.HeadDim()) *
-                                   static_cast<size_t>(config_.NumKVHeads()) *
-                                   static_cast<size_t>(config_.SeqLen()))) +
-                         (pos * (static_cast<size_t>(config_.HeadDim()) *
-                                 static_cast<size_t>(config_.NumKVHeads()))) +
-                         (head_idx * (static_cast<size_t>(config_.HeadDim()))),
-                     {
-                         static_cast<size_t>(config_.HeadDim()),
-                     },
-                     device_type_);
+    return Tensor<T>(
+        value_cache->GetData()->Clone(
+            ((layer * (static_cast<size_t>(config_.HeadDim()) *
+                       static_cast<size_t>(config_.NumKVHeads()) *
+                       static_cast<size_t>(config_.SeqLen()))) +
+             (pos * (static_cast<size_t>(config_.HeadDim()) *
+                     static_cast<size_t>(config_.NumKVHeads()))) +
+             (head_idx * (static_cast<size_t>(config_.HeadDim())))) *
+            sizeof(T)),
+        {
+            static_cast<size_t>(config_.HeadDim()),
+        },
+        device_type_);
   }
 
   Tensor<T>& Att() { return *att; }
-  Tensor<T> Att(const size_t head_idx) {
-    return Tensor<T>(att->GetData() + head_idx * config_.SeqLen(),
-                     {static_cast<size_t>(config_.SeqLen())});
+  Tensor<T> Att(const size_t head_idx, const size_t size) {
+    return Tensor<T>(
+        att->GetData()->Clone(head_idx * config_.SeqLen() * sizeof(T)), {size},
+        device_type_);
   }
   Tensor<T>& Logits() { return *logits; }
   Tensor<T>& KeyCache() { return *key_cache; }

@@ -72,6 +72,7 @@ void LaunchRmsNormKernel(const float* x, const float* weight, size_t size,
   const auto elementsPerThread = IDivCeil(size, kNumThreadsLarge);
   rmsnorm_kernel<<<1, kNumThreadsLarge>>>(x, weight, size, o,
                                           elementsPerThread);
+  cudaDeviceSynchronize();
 }
 
 //------------------------------------------------------------------------------
@@ -101,6 +102,7 @@ void LaunchMatMulKernel(const float* weight, const float* input, const int n,
                         const int d, float* out) {
   matmul_kernel<<<IDivCeil(d, kNumThreadsSmall), kNumThreadsSmall>>>(
       weight, input, n, d, out);
+  cudaDeviceSynchronize();
 }
 //------------------------------------------------------------------------------
 // End of MatMul
@@ -140,10 +142,128 @@ void LaunchRoPEKernel(const size_t position, const size_t num_heads,
                       const float freq_scale, float* Q, float* K) {
   rope_kernel<<<1, head_dim / 2>>>(position, num_heads, head_dim, num_kv_heads,
                                    freq_scale, Q, K);
+  cudaDeviceSynchronize();
 }
 
 //------------------------------------------------------------------------------
 // End of RoPE
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Start of MultiHeadAttention
+//------------------------------------------------------------------------------
+
+__device__ void softmax_gpu(float* __restrict__ x, int size) {
+  int tid = threadIdx.x;
+  int step = blockDim.x;
+
+  // find max value (for numerical stability)
+  float max_val = tid < size ? x[tid] : 0;
+  for (int i = tid + step; i < size; i += step) {
+    if (x[i] > max_val) {
+      max_val = x[i];
+    }
+  }
+  using BlockReduce = cub::BlockReduce<float, kNumThreadsLarge>;
+  __shared__ typename BlockReduce::TempStorage temp;
+  __shared__ float shared_val;
+  max_val = BlockReduce(temp).Reduce(max_val, cub::Max());
+  if (threadIdx.x == 0) {
+    shared_val = max_val;
+  }
+  __syncthreads();
+  max_val = shared_val;
+
+  // exp and sum
+  float sum = 0.0f;
+  for (int i = tid; i < size; i += step) {
+    x[i] = expf(x[i] - max_val);
+    sum += x[i];
+  }
+  sum = BlockReduce(temp).Sum(sum);
+  if (threadIdx.x == 0) {
+    shared_val = sum;
+  }
+  __syncthreads();
+  sum = shared_val;
+
+  // normalize
+  for (int i = tid; i < size; i += step) {
+    x[i] /= sum;
+  }
+}
+
+__global__ void multi_head_attention_kernel(
+    const size_t pos, const size_t seq_len, const float* sq,
+    const float* key_cache_layer, const float* value_cache_layer,
+    const size_t kv_dim, const size_t kv_mul, const size_t head_size,
+    float* satt, float* sxb) {
+  int h = blockIdx.x;
+  // get the query vector for this head
+  const float* q = sq + h * head_size;
+  // attention scores for this head
+  float* att = satt + h * seq_len;
+  // iterate over all timesteps, including the current one
+  // In CUDA, each thread does a small portion of the calc
+  for (int t = threadIdx.x; t <= pos; t += blockDim.x) {
+    // get the key vector for this head and at this timestep
+    const float* k = key_cache_layer + t * kv_dim + (h / kv_mul) * head_size;
+    // calculate the attention score as the dot product of q and k
+    float score = 0.0f;
+    for (int i = 0; i < head_size; i++) {
+      score += q[i] * k[i];
+    }
+    score /= sqrtf(head_size);
+    // save the score to the attention buffer
+    att[t] = score;
+  }
+  // above was this threads portion of the iteration. wait for all threads to
+  // finish
+  __syncthreads();
+
+  // softmax the scores to get attention weights, from 0...pos inclusively
+  softmax_gpu(att, pos + 1);
+  __syncthreads();
+
+  // weighted sum of the values, store back into xb
+  // NOTE: by swapping the order of the for loops (vs. C) a simpler
+  // version of the code accomplishes the same task and fits more
+  // naturally with the CUDA way of subdividing the problem.
+  float* xb = sxb + h * head_size;
+  for (int i = threadIdx.x; i < head_size; i += blockDim.x) {
+    float val = 0.0f;
+    for (int t = 0; t <= pos; t++) {
+      // get the value vector for this head and at this timestep
+      const float* v =
+          value_cache_layer + t * kv_dim + (h / kv_mul) * head_size;
+      // get the attention weight for this timestep
+      float a = att[t];
+      val += a * v[i];
+    }
+    xb[i] = val;
+  }
+}
+
+void LaunchMultiHeadAttentionKernel(
+    const size_t pos, const size_t seq_len, const float* sq,
+    const float* key_cache_layer, const float* value_cache_layer,
+    const size_t kv_dim, const size_t kv_mul, const size_t num_heads,
+    const size_t head_size, float* satt, float* sxb) {
+  multi_head_attention_kernel<<<num_heads, kNumThreadsLarge>>>(
+      pos, seq_len, sq, key_cache_layer, value_cache_layer, kv_dim, kv_mul,
+      head_size, satt, sxb);
+  cudaDeviceSynchronize();
+}
+
+// void multi_head_attention(int pos, Config* p, RunState* s, int kv_dim,
+//                           int kv_mul, int head_size, int loff) {
+//   multi_head_attention_kernel<<<p->n_heads, num_threads_large>>>(
+//       pos, p->max_seq_len, s->q, s->att, s->xb, s->key_cache, s->value_cache,
+//       kv_dim, kv_mul, head_size, loff);
+// }
+
+//------------------------------------------------------------------------------
+// End of MultiHeadAttention
 //------------------------------------------------------------------------------
 
 }  // namespace CudaOps

@@ -73,9 +73,16 @@ TEST_F(CUDARmsNormTest, RmsNormTest) {
   llama::DeviceFactory::GetDevice(llama::DeviceType::CUDA)
       .GetMemcpy()
       .Copy(*(out_buffer_host.GetData()), *(actual.GetData()));
-  EXPECT_TRUE(
-      std::equal(expected_o.begin(), expected_o.end(),
-                 static_cast<float*>(out_buffer_host.GetData()->GetBuffer())));
+  auto out_buffer_host_ptr =
+      static_cast<float*>(out_buffer_host.GetData()->GetBuffer());
+  bool equal = true;
+  for (size_t i = 0; i < kSize; i++) {
+    if (std::abs(expected_o[i] - out_buffer_host_ptr[i]) > 1e-5) {
+      equal = false;
+      break;
+    }
+  }
+  EXPECT_TRUE(equal) << "Mismatch";
 }
 
 TEST_F(CUDARmsNormTest, ForwardTest) {

@@ -159,6 +159,7 @@ class Transformer {
       // RoPE
       { op_set_.RoPE<T>(pos, config_, Q, K); }
 
+#if 0
       // Multi-Head Attention
       const size_t kNumHeads = config_.NumHeads();
       const size_t kKVMul = config_.KVMul();
@@ -171,7 +172,9 @@ class Transformer {
         auto XB = run_state_->XB(head_idx);
         op_set_.Attention<T>(Q, K_layer, V_layer, config_, pos, kKVHeadIdx, XB);
       }
-
+#else
+      op_set_.MultiAttention<T>(layer, pos, config_, *run_state_);
+#endif
       // Matmul
       {
         const auto WO =
