@@ -231,7 +231,14 @@ class ElementwiseAdd {
   static void Compute(const T* left, const T* right, T* output,
                       const size_t size) {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
-    throw std::runtime_error("Not implemented : ElementwiseAdd");
+
+    // Currently, only float is supported
+    DCHECK_EQ(typeid(T).name(), typeid(float).name())
+        << "Only float is supported";
+
+    void LaunchElementwiseAddKernel(const float* left, const float* right,
+                                    float* output, int size);
+    LaunchElementwiseAddKernel(left, right, output, size);
   }
 };
 
