@@ -304,7 +304,7 @@ class MultiAttention {
         kKVMul,                               // kv_mul,
         kNumHeads,                            // num_heads,
         kInputEmbedDim / kNumHeads,           // head_size,
-        static_cast<float*>(run_state.att().GetData()->GetBuffer()),  // satt,
+        static_cast<float*>(run_state.Att().GetData()->GetBuffer()),  // satt,
         static_cast<float*>(run_state.XB().GetData()->GetBuffer())    // sxb
     );
   }

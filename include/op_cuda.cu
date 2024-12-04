@@ -72,6 +72,7 @@ void LaunchRmsNormKernel(const float* x, const float* weight, size_t size,
   const auto elementsPerThread = IDivCeil(size, kNumThreadsLarge);
   rmsnorm_kernel<<<1, kNumThreadsLarge>>>(x, weight, size, o,
                                           elementsPerThread);
+  cudaDeviceSynchronize();
 }
 
 //------------------------------------------------------------------------------
@@ -101,6 +102,7 @@ void LaunchMatMulKernel(const float* weight, const float* input, const int n,
                         const int d, float* out) {
   matmul_kernel<<<IDivCeil(d, kNumThreadsSmall), kNumThreadsSmall>>>(
       weight, input, n, d, out);
+  cudaDeviceSynchronize();
 }
 //------------------------------------------------------------------------------
 // End of MatMul
@@ -140,6 +142,7 @@ void LaunchRoPEKernel(const size_t position, const size_t num_heads,
                       const float freq_scale, float* Q, float* K) {
   rope_kernel<<<1, head_dim / 2>>>(position, num_heads, head_dim, num_kv_heads,
                                    freq_scale, Q, K);
+  cudaDeviceSynchronize();
 }
 
 //------------------------------------------------------------------------------
@@ -249,6 +252,7 @@ void LaunchMultiHeadAttentionKernel(
   multi_head_attention_kernel<<<num_heads, kNumThreadsLarge>>>(
       pos, seq_len, sq, key_cache_layer, value_cache_layer, kv_dim, kv_mul,
       head_size, satt, sxb);
+  cudaDeviceSynchronize();
 }
 
 // void multi_head_attention(int pos, Config* p, RunState* s, int kv_dim,
