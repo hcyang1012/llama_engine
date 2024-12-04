@@ -262,7 +262,14 @@ class SiLU_EWMul {
   static void Compute(const T* input, const T* weight, T* output,
                       const size_t size) {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
-    throw std::runtime_error("Not implemented : SiLU_EWMul");
+
+    // Currently, only float is supported
+    DCHECK_EQ(typeid(T).name(), typeid(float).name())
+        << "Only float is supported";
+
+    void LaunchSiLU_EWMulKernel(const float* input, const float* weight,
+                                float* output, const size_t size);
+    LaunchSiLU_EWMulKernel(input, weight, output, size);
   }
 };
 

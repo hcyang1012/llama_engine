@@ -61,9 +61,9 @@ class Transformer {
   std::string Generate(const Tokenizer<T> &tokenizer, const std::string &prompt,
                        const size_t steps, const RunConfig &run_config,
                        const bool print = true) {
-    auto sampler = std::make_unique<Sampler>(
-        config_.VocabSize(), run_config.temperature, run_config.topp,
-        run_config.rng_seed, op_set_);
+    auto sampler =
+        std::make_unique<Sampler>(config_.VocabSize(), run_config.temperature,
+                                  run_config.topp, run_config.rng_seed);
     std::stringstream ss;
     const auto encoder =
         Encoder<T>(tokenizer, prompt, true, false, special_tokens_);
@@ -101,12 +101,12 @@ class Transformer {
     }
     if (pos > 1) {
       auto end_time = std::chrono::high_resolution_clock::now();
-      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
           end_time - start_time);
       if (print == true) {
         std::cout << std::endl;
         std::cout << "Average tok/s: "
-                  << (pos - 1) / (double)(duration.count() / 1000) << std::endl;
+                  << (pos - 1) / (double)(duration.count() / 1e6) << std::endl;
       }
     }
     return ss.str();
@@ -208,17 +208,15 @@ class Transformer {
       // Residual Connection
       { op_set_.ElementwiseAdd<T>(X, XB, X); }
     }
-
+    auto X_host_dump0 = run_state_->X().Dump();
     // Final RMSNorm
     const auto kRmsFinalWeight = weights_.RMSFinalWeight();
     { op_set_.RmsNorm<T>(X, kRmsFinalWeight, X); }
-
+    auto X_host_dump1 = run_state_->X().Dump();
     // Logits
     { op_set_.MatMul<T>(weights_.WCLS(), X, run_state_->Logits()); }
-
-    const auto logits = run_state_->Logits();
-    volatile const T *logits_ptr =
-        static_cast<volatile T *>(logits.GetData()->GetBuffer());
+    auto X_host_dump2 = run_state_->X().Dump();
+    const auto logits = run_state_->Logits().Dump();
     return logits;
   }
 

@@ -23,14 +23,19 @@ class MemcpyCUDA : public MemcpyBase {
  public:
   void Copy(MemoryBuffer &dst, const MemoryBuffer &src,
             const size_t bytes_size) override {
-    if (dst.GetDeviceType() == DeviceType::CPU &&
-        src.GetDeviceType() == DeviceType::CUDA) {
+    const auto kSrcDeviceType = src.GetDeviceType();
+    const auto kDstDeviceType = dst.GetDeviceType();
+    if (kDstDeviceType == DeviceType::CPU &&
+        kSrcDeviceType == DeviceType::CUDA) {
       cudaMemcpy(dst.GetBuffer(), src.GetBuffer(), bytes_size,
                  cudaMemcpyDeviceToHost);
-    } else if (dst.GetDeviceType() == DeviceType::CUDA &&
-               src.GetDeviceType() == DeviceType::CPU) {
+    } else if (kDstDeviceType == DeviceType::CUDA &&
+               kSrcDeviceType == DeviceType::CPU) {
       cudaMemcpy(dst.GetBuffer(), src.GetBuffer(), bytes_size,
                  cudaMemcpyHostToDevice);
+    } else if (kDstDeviceType == DeviceType::CUDA &&
+               kSrcDeviceType == DeviceType::CUDA) {
+      LOG(FATAL) << "Unsupported device type from CUDA to CUDA";
     } else {
       LOG(FATAL) << "Unsupported device type from CPU to CPU";
     }
