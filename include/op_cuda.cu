@@ -282,6 +282,32 @@ void LaunchElementwiseAddKernel(const float* left, const float* right,
 // End of ElementwiseAdd
 //------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Start of SiLU_EWMul
+//------------------------------------------------------------------------------
+__global__ void f_silu_elementwise_mul_w3_kernel(const float* input,
+                                                 const float* weight,
+                                                 float* output,
+                                                 const size_t size) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < size) {
+    float val = input[i];
+    // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
+    val *= (1.0f / (1.0f + expf(-val)));
+    // elementwise multiply with w3(x)
+    val *= weight[i];
+    output[i] = val;
+  }
+}
+
+void LaunchSiLU_EWMulKernel(const float* input, const float* weight,
+                            float* output, const size_t size) {
+  f_silu_elementwise_mul_w3_kernel<<<IDivCeil(size, kNumThreadsSmall),
+                                     kNumThreadsSmall>>>(input, weight, output,
+                                                         size);
+  cudaDeviceSynchronize();
+}
+
 }  // namespace CudaOps
 
 }  // namespace llama

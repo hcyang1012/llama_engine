@@ -262,7 +262,14 @@ class SiLU_EWMul {
   static void Compute(const T* input, const T* weight, T* output,
                       const size_t size) {
     DCHECK_GE(size, 0) << "Size should be greater than or equal to 0";
-    throw std::runtime_error("Not implemented : SiLU_EWMul");
+
+    // Currently, only float is supported
+    DCHECK_EQ(typeid(T).name(), typeid(float).name())
+        << "Only float is supported";
+
+    void LaunchSiLU_EWMulKernel(const float* input, const float* weight,
+                                float* output, const size_t size);
+    LaunchSiLU_EWMulKernel(input, weight, output, size);
   }
 };
 
@@ -285,7 +292,7 @@ class MultiAttention {
                       const TransformerConfig& config, RunState<T>& run_state) {
     const size_t kNumHeads = config.NumHeads();
     const size_t kNumKVHeads = config.NumKVHeads();
-    const size_t kKVMul = kNumKVHeads / kNumHeads;
+    const size_t kKVMul = config.KVMul();
     const size_t kInputEmbedDim = config.Dim();
     const size_t kSeqLen = config.SeqLen();
     const size_t kHiddenDim = config.HiddenDim();
@@ -307,7 +314,7 @@ class MultiAttention {
             K_layer.GetData()->GetBuffer()),  // key_cache_layer,
         static_cast<const float*>(
             V_layer.GetData()->GetBuffer()),  // value_cache_layer,
-        kInputEmbedDim,                       // kv_dim,
+        config.KVHeadDim(),                   // kv_dim,
         kKVMul,                               // kv_mul,
         kNumHeads,                            // num_heads,
         kInputEmbedDim / kNumHeads,           // head_size,

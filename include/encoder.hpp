@@ -132,6 +132,7 @@ class Encoder {
       float best_score = kEpsilon;
 
       std::list<int>::iterator best_it = prompt_tokens_.end();
+      std::size_t best_id = 0;
 
       auto try_merge = [&](const size_t merge_count) {
         DCHECK_LE(merge_count, 3);
@@ -141,6 +142,7 @@ class Encoder {
           end--;
         }
 
+        std::string best_str;
         for (auto it = prompt_tokens_.begin(); it != end; ++it) {
           std::stringstream ss;
           auto next = it;
@@ -153,6 +155,8 @@ class Encoder {
             if (tokenizer_.VocabScores()[kId] > best_score) {
               best_score = tokenizer_.VocabScores()[kId];
               best_it = it;
+              best_id = kId;
+              best_str = ss.str();
             }
           } catch (const std::out_of_range& e) {
             // Do nothing
@@ -167,16 +171,15 @@ class Encoder {
           break;
         }
         merged_count = 3;
+      } else {
+        // We found a pair to merge
+        merged_count = 2;
       }
-
-      // Merge the consecutive pair (best_idx, best_idx+) in case of a pair or
-      // triple (best_idx, best_idx+1, best_idx+2) into new token best_id
+      *best_it = best_id;
       auto next = best_it;
+      next = (++next);
       for (size_t i = 0; i < (merged_count - 1); ++i) {
-        next = (++next);
-        *best_it = tokenizer_.VocabMap().at(tokenizer_.Vocab()[*best_it] +
-                                            tokenizer_.Vocab()[*next]);
-        prompt_tokens_.erase(next);
+        next = prompt_tokens_.erase(next);
       }
     }
   }

@@ -247,9 +247,7 @@ class TransformerWeights {
     }
 
     {
-      const size_t kRmsFinalWeightSize =
-          config.Dim() + (config.SeqLen() * config.HeadDim() / 2) +
-          (config.SeqLen() * config.HeadDim() / 2);
+      const size_t kRmsFinalWeightSize = config.Dim();
       rms_final_weight_ = DeviceFactory::GetDevice(device_type_)
                               .GetMemoryAllocator()
                               .Allocate(kRmsFinalWeightSize * sizeof(T));
@@ -265,7 +263,17 @@ class TransformerWeights {
                  2;  // Skip what used to be freq_cis_imag (for RoPE)
 
     if (config.ShareWeights()) {
-      wcls_ = token_embedding_table_;
+      if (token_embedding_table_->GetDeviceType() != device_type_) {
+        wcls_ = DeviceFactory::GetDevice(device_type_)
+                    .GetMemoryAllocator()
+                    .Allocate(config.Dim() * config.VocabSize() * sizeof(T));
+        DeviceFactory::GetDevice(device_type_)
+            .GetMemcpy()
+            .Copy(*wcls_, token_embedding_table_->GetBuffer(),
+                  config.Dim() * config.VocabSize() * sizeof(T));
+      } else {
+        wcls_ = token_embedding_table_;
+      }
     } else {
       const size_t kWclsSize = config.Dim() * config.VocabSize();
       wcls_ = DeviceFactory::GetDevice(device_type_)

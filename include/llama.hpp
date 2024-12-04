@@ -54,6 +54,14 @@ class LlamaModel {
     return transformer_->Generate(*tokenizer_, prompt, steps, run_config);
   }
 
+  void Chat(const std::string& prompt, const std::string& system_prompt,
+            const size_t steps, const RunConfig& run_config) {
+    if (!transformer_ || !tokenizer_) {
+      throw std::runtime_error("Model is not initialized.");
+    }
+    transformer_->Chat(*tokenizer_, prompt, system_prompt, run_config, steps);
+  }
+
   auto& GetTransformer() const { return *transformer_; }
   const auto& GetTokenizer() const { return *tokenizer_; }
 

@@ -28,6 +28,7 @@ void error_usage(const std::string &program_name) {
   std::cerr << "  -y <system_prompt>  Set the system prompt\n";
   std::cerr << "  -z <tokenizer_path> Set the tokenizer path (default: "
                "tokenizer_llama3.bin)\n";
+  std::cerr << "  -d <device>         Set the device to use (default: CPU)\n";
   std::exit(1);
 }
 
@@ -45,6 +46,7 @@ int main(int argc, char *argv[]) {
   std::string mode("generate");       // mode to run in
   char *system_prompt =
       NULL;  // the (optional) system prompt to use in chat mode
+  std::string device("cpu");
 
   // poor man's C argparse so we can override the defaults above from the
   // command line
@@ -81,6 +83,8 @@ int main(int argc, char *argv[]) {
       system_prompt = argv[i + 1];
     } else if (argv[i][1] == 'z') {
       tokenizer_path = argv[i + 1];
+    } else if (argv[i][1] == 'd') {
+      device = argv[i + 1];
     } else {
       error_usage(argv[0]);
     }
@@ -104,7 +108,10 @@ int main(int argc, char *argv[]) {
     prompt = const_cast<char *>(kDefaultPrompt.c_str());
   }
 
-  const auto kDeviceType = llama::DeviceType::CPU;
+  auto kDeviceType = llama::DeviceType::CPU;
+  if (device == "cuda") {
+    kDeviceType = llama::DeviceType::CUDA;
+  }
   const llama::LlamaConfig llama3_config = {.checkpoint_path = checkpoint_path,
                                             .tokenizer_path = tokenizer_path,
                                             .device_type = kDeviceType};
@@ -118,6 +125,41 @@ int main(int argc, char *argv[]) {
 
   if (mode == "generate") {
     {
+      std::cout << "Reference Generation:" << std::endl;
+      if (kDeviceType == llama::DeviceType::CUDA) {
+        std::cout << "CUDA is not supported in the reference implementation."
+                  << std::endl;
+      } else {
+        reference_llama3::Transformer ref_transformer;
+        reference_llama3::build_transformer(&ref_transformer,
+                                            checkpoint_path.c_str());
+
+        reference_llama3::Tokenizer ref_tokenizer;
+        reference_llama3::build_tokenizer(&ref_tokenizer,
+                                          tokenizer_path.c_str(),
+                                          ref_transformer.config.vocab_size);
+
+        reference_llama3::Sampler sampler;
+        reference_llama3::build_sampler(&sampler,
+                                        ref_transformer.config.vocab_size,
+                                        temperature, topp, rng_seed);
+        reference_llama3::generate(&ref_transformer, &ref_tokenizer, &sampler,
+                                   prompt, steps);
+      }
+    }
+    std::cout << std::endl;
+    {
+      std::cout << "My Generation:" << std::endl;
+      const llama::RunConfig run_config = {
+          .temperature = temperature, .topp = topp, .rng_seed = rng_seed};
+      llama3.Generate(prompt, steps, run_config);
+    }
+  } else if (mode == "chat") {
+    std::cout << "Reference Chat:" << std::endl;
+    if (kDeviceType == llama::DeviceType::CUDA) {
+      std::cout << "CUDA is not supported in the reference implementation."
+                << std::endl;
+    } else {
       reference_llama3::Transformer ref_transformer;
       reference_llama3::build_transformer(&ref_transformer,
                                           checkpoint_path.c_str());
@@ -130,23 +172,18 @@ int main(int argc, char *argv[]) {
       reference_llama3::build_sampler(&sampler,
                                       ref_transformer.config.vocab_size,
                                       temperature, topp, rng_seed);
-
-      std::cout << "Reference Generation:" << std::endl;
-      reference_llama3::generate(&ref_transformer, &ref_tokenizer, &sampler,
-                                 prompt, steps);
+      reference_llama3::chat(&ref_transformer, &ref_tokenizer, &sampler, prompt,
+                             system_prompt, steps);
     }
+
     std::cout << std::endl;
+
     {
-      std::cout << "My Generation:" << std::endl;
+      std::cout << "My Chat:" << std::endl;
       const llama::RunConfig run_config = {
           .temperature = temperature, .topp = topp, .rng_seed = rng_seed};
-      llama3.Generate(prompt, steps, run_config);
+      llama3.Chat(prompt, system_prompt, steps, run_config);
     }
-
-  } else if (mode == "chat") {
-    // transformer.Chat(tokenizer,
-    // sampler, steps, prompt,
-    // system_prompt);
   } else {
     std::cerr << "Unknown mode: " << mode << std::endl;
     error_usage(argv[0]);

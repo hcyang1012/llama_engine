@@ -20,8 +20,7 @@ class SamplerTest : public ::testing::Test {
 
     auto& transformer = llama2_->GetTransformer();
     sampler_ = std::make_unique<llama::Sampler>(
-        transformer.GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed,
-        *op_set_);
+        transformer.GetConfig().VocabSize(), kTemperature, kTopP, kRngSeed);
   }
 
   void TearDown() override {

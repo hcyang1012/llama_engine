@@ -56,7 +56,7 @@ endfunction()
 # CUDA tests
 if(USE_CUDA)
 
-    build_cuda_file(op_cuda ${CMAKE_SOURCE_DIR}/include/op_cuda.cu)
+    # build_cuda_file(op_cuda ${CMAKE_SOURCE_DIR}/include/op_cuda.cu)
 
     add_cuda_test(cuda_allocator_test cuda/cuda_allocator_test.cpp)
     add_cuda_test(cuda_op_rmsnorm_test cuda/cuda_op_rmsnorm_test.cpp)
@@ -64,4 +64,6 @@ if(USE_CUDA)
     add_cuda_test(cuda_op_rope_test cuda/cuda_op_rope_test.cpp)
     add_cuda_test(cuda_op_attention_test cuda/cuda_op_attention_test.cpp)
     add_cuda_test(cuda_op_ewadd_test cuda/cuda_op_ewadd_test.cpp)
+    add_cuda_test(cuda_forward_test cuda/cuda_forward_test.cpp)
+    add_cuda_test(cuda_generate_test cuda/cuda_generate_test.cpp)
 endif()
