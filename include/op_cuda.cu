@@ -255,15 +255,31 @@ void LaunchMultiHeadAttentionKernel(
   cudaDeviceSynchronize();
 }
 
-// void multi_head_attention(int pos, Config* p, RunState* s, int kv_dim,
-//                           int kv_mul, int head_size, int loff) {
-//   multi_head_attention_kernel<<<p->n_heads, num_threads_large>>>(
-//       pos, p->max_seq_len, s->q, s->att, s->xb, s->key_cache, s->value_cache,
-//       kv_dim, kv_mul, head_size, loff);
-// }
-
 //------------------------------------------------------------------------------
 // End of MultiHeadAttention
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Start of ElementwiseAdd
+//------------------------------------------------------------------------------
+
+__global__ void elementwise_add_kernel(const float* left, const float* right,
+                                       float* output, int size) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < size) {
+    output[i] = left[i] + right[i];
+  }
+}
+
+void LaunchElementwiseAddKernel(const float* left, const float* right,
+                                float* output, int size) {
+  elementwise_add_kernel<<<IDivCeil(size, kNumThreadsSmall),
+                           kNumThreadsSmall>>>(left, right, output, size);
+  cudaDeviceSynchronize();
+}
+
+//------------------------------------------------------------------------------
+// End of ElementwiseAdd
 //------------------------------------------------------------------------------
 
 }  // namespace CudaOps
