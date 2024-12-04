@@ -112,6 +112,112 @@ class Transformer {
     return ss.str();
   }
 
+  void Chat(const Tokenizer<T> &tokenizer, const std::string &prompt,
+            const std::string &system_prompt, const RunConfig &run_config,
+            const size_t steps, const bool print = true) {
+    bool user_turn = true;
+    size_t user_idx = 0;
+    int next;
+
+    size_t pos = 0;
+    std::vector<int> prompt_tokens;
+
+    auto sampler =
+        std::make_unique<Sampler>(config_.VocabSize(), run_config.temperature,
+                                  run_config.topp, run_config.rng_seed);
+
+    while (pos < steps) {
+      if (user_turn) {
+        if (pos == 0) {
+          prompt_tokens.push_back(special_tokens_.GetToken(
+              SpecialTokens::Idx::IDX_BOS_01));  // <|begin_of_text|>
+          prompt_tokens.push_back(special_tokens_.GetToken(
+              SpecialTokens::Idx::IDX_START_HEADER_ID_03));  // <|start_header|>
+          prompt_tokens.push_back(special_tokens_.GetToken(
+              SpecialTokens::Idx::IDX_SYSTEM_04));  // system
+          prompt_tokens.push_back(special_tokens_.GetToken(
+              SpecialTokens::Idx::IDX_END_HEADER_ID_05));  // <|end_header|>
+          prompt_tokens.push_back(special_tokens_.GetToken(
+              SpecialTokens::Idx::IDX_NEW_LINE_X2_06));  // \n\n
+          const auto encoder_system =
+              Encoder<T>(tokenizer, prompt, false, false, special_tokens_);
+          const auto &prompt_system_tokens = encoder_system.PromptTokens();
+          for (const auto &token : prompt_system_tokens) {
+            prompt_tokens.push_back(token);
+          }
+          prompt_tokens.push_back(special_tokens_.GetToken(
+              SpecialTokens::Idx::IDX_EOT_ID_07));  // <|end_of_text|>
+        } else {
+          prompt_tokens.clear();
+        }
+        prompt_tokens.push_back(special_tokens_.GetToken(
+            SpecialTokens::Idx::IDX_START_HEADER_ID_03));  // <|start_header|>
+        prompt_tokens.push_back(
+            special_tokens_.GetToken(SpecialTokens::Idx::IDX_USER_08));  // user
+        prompt_tokens.push_back(special_tokens_.GetToken(
+            SpecialTokens::Idx::IDX_END_HEADER_ID_05));    // <|end_header|>
+        prompt_tokens.push_back(special_tokens_.GetToken(  // \n\n
+            SpecialTokens::Idx::IDX_NEW_LINE_X2_06));
+
+        const auto encoder_user =
+            Encoder<T>(tokenizer, prompt, false, false, special_tokens_);
+        const auto &prompt_user_tokens = encoder_user.PromptTokens();
+        for (const auto &token : prompt_user_tokens) {
+          prompt_tokens.push_back(token);
+        }
+        prompt_tokens.push_back(special_tokens_.GetToken(
+            SpecialTokens::Idx::IDX_EOT_ID_07));           // <|end_of_text|>
+        prompt_tokens.push_back(special_tokens_.GetToken(  // <|start_header|>
+            SpecialTokens::Idx::IDX_START_HEADER_ID_03));
+        prompt_tokens.push_back(special_tokens_.GetToken(
+            SpecialTokens::Idx::IDX_ASSISTANT_09));  // assistant
+        prompt_tokens.push_back(special_tokens_.GetToken(
+            SpecialTokens::Idx::IDX_END_HEADER_ID_05));    // <|end_header|>
+        prompt_tokens.push_back(special_tokens_.GetToken(  // \n\n
+            SpecialTokens::Idx::IDX_NEW_LINE_X2_06));
+
+        user_turn = false;
+        user_idx = 0;
+      }  // end of user_turn
+
+      int token;
+      if (user_idx < prompt_tokens.size()) {
+        token = prompt_tokens[user_idx++];
+      } else {
+        token = next;
+      }
+
+      if (user_idx >= prompt_tokens.size() &&
+          (next ==
+               special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOT_ID_07) ||
+           next == special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOS_02))) {
+        user_turn = true;
+      }
+
+      auto logits = Forward(token, pos);
+      next = sampler->Sample(logits);
+      pos++;
+
+      if (user_idx >= prompt_tokens.size() &&
+          (next !=
+               special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOT_ID_07) &&
+           next != special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOS_02) &&
+           next != special_tokens_.GetToken(
+                       SpecialTokens::Idx::IDX_START_HEADER_ID_03))) {
+        auto piece =
+            Decoder<T>::Decode(tokenizer, token, next, special_tokens_);
+        safe_print(piece, std::cout, print);
+      }
+      if (user_idx >= prompt_tokens.size() &&
+          (next ==
+               special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOT_ID_07) ||
+           next == special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOS_02))) {
+        std::cout << std::endl;
+      }
+    }
+    std::cout << std::endl;
+  }
+
   const Tensor<T> Forward(const size_t token, const size_t pos) {
     const size_t kInputEmbedDim = config_.Dim();
     const size_t kPerHeadDim = kInputEmbedDim / config_.NumHeads();
@@ -208,14 +314,12 @@ class Transformer {
       // Residual Connection
       { op_set_.ElementwiseAdd<T>(X, XB, X); }
     }
-    auto X_host_dump0 = run_state_->X().Dump();
     // Final RMSNorm
     const auto kRmsFinalWeight = weights_.RMSFinalWeight();
     { op_set_.RmsNorm<T>(X, kRmsFinalWeight, X); }
-    auto X_host_dump1 = run_state_->X().Dump();
+
     // Logits
     { op_set_.MatMul<T>(weights_.WCLS(), X, run_state_->Logits()); }
-    auto X_host_dump2 = run_state_->X().Dump();
     const auto logits = run_state_->Logits().Dump();
     return logits;
   }

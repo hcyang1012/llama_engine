@@ -229,9 +229,7 @@ TEST_F(WeightLoadTest, RMSFinalWeight) {
   const auto& kConfig = transformer_.GetConfig();
 
   const auto& kWeights = transformer_.GetWeights();
-  const size_t kRMSFinalWeightSize = kConfig.Dim() +
-                                     (kConfig.SeqLen() * kHeadSize / 2) +
-                                     (kConfig.SeqLen() * kHeadSize / 2);
+  const size_t kRMSFinalWeightSize = kConfig.Dim();
 
   const auto p_rms_final_weight = kWeights.RMSFinalWeight();
 

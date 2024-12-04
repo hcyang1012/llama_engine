@@ -10,9 +10,8 @@
 #include <llama.hpp>
 #include <op.hpp>
 #include <transformer.hpp>
-#if defined(USE_LLAMA2)
+
 #include "references/reference_llama2.cpp"
-#endif
 // Third-party Headers
 
 void error_usage(const std::string &program_name) {
@@ -29,6 +28,7 @@ void error_usage(const std::string &program_name) {
   std::cerr << "  -y <system_prompt>  Set the system prompt\n";
   std::cerr << "  -z <tokenizer_path> Set the tokenizer path (default: "
                "tokenizer.bin)\n";
+  std::cerr << "  -d <device>         Set the device to use (default: CPU)\n";
   std::exit(1);
 }
 
@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
   std::string mode("generate");       // mode to run in
   char *system_prompt =
       NULL;  // the (optional) system prompt to use in chat mode
+  std::string device("cpu");
 
   // poor man's C argparse so we can override the defaults above from the
   // command line
@@ -82,6 +83,8 @@ int main(int argc, char *argv[]) {
       system_prompt = argv[i + 1];
     } else if (argv[i][1] == 'z') {
       tokenizer_path = argv[i + 1];
+    } else if (argv[i][1] == 'd') {
+      device = argv[i + 1];
     } else {
       error_usage(argv[0]);
     }
@@ -105,7 +108,10 @@ int main(int argc, char *argv[]) {
     prompt = const_cast<char *>(kDefaultPrompt.c_str());
   }
 
-  const auto kDeviceType = llama::DeviceType::CPU;
+  auto kDeviceType = llama::DeviceType::CPU;
+  if (device == "cuda") {
+    kDeviceType = llama::DeviceType::CUDA;
+  }
   const llama::LlamaConfig llama2_config = {.checkpoint_path = checkpoint_path,
                                             .tokenizer_path = tokenizer_path,
                                             .device_type = kDeviceType};

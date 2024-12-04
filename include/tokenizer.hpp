@@ -30,7 +30,14 @@ class SpecialTokens {
     IDX_UNK_00 = 0,
     IDX_BOS_01 = 1,
     IDX_EOS_02 = 2,
-    NUM_SPECIAL_TOKENS = 3
+    IDX_START_HEADER_ID_03 = 3,
+    IDX_SYSTEM_04 = 4,
+    IDX_END_HEADER_ID_05 = 5,
+    IDX_NEW_LINE_X2_06 = 6,  // '\n\n'
+    IDX_EOT_ID_07 = 7,
+    IDX_USER_08 = 8,
+    IDX_ASSISTANT_09 = 9,
+    NUM_SPECIAL_TOKENS,
   };
   virtual size_t GetToken(const Idx idx) const = 0;
 
@@ -63,6 +70,20 @@ class SpecialTokensLlama3 : public SpecialTokens {
         return 128000;
       case Idx::IDX_EOS_02:
         return 128001;
+      case Idx::IDX_START_HEADER_ID_03:
+        return 128006;
+      case Idx::IDX_SYSTEM_04:
+        return 9125;
+      case Idx::IDX_END_HEADER_ID_05:
+        return 128007;
+      case Idx::IDX_NEW_LINE_X2_06:
+        return 271;
+      case Idx::IDX_EOT_ID_07:
+        return 128009;
+      case Idx::IDX_USER_08:
+        return 882;
+      case Idx::IDX_ASSISTANT_09:
+        return 78191;
       default:
         throw std::runtime_error("Invalid special token index.");
     }

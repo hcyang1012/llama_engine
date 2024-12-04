@@ -247,9 +247,7 @@ class TransformerWeights {
     }
 
     {
-      const size_t kRmsFinalWeightSize =
-          config.Dim() + (config.SeqLen() * config.HeadDim() / 2) +
-          (config.SeqLen() * config.HeadDim() / 2);
+      const size_t kRmsFinalWeightSize = config.Dim();
       rms_final_weight_ = DeviceFactory::GetDevice(device_type_)
                               .GetMemoryAllocator()
                               .Allocate(kRmsFinalWeightSize * sizeof(T));

@@ -56,7 +56,7 @@ endfunction()
 # CUDA tests
 if(USE_CUDA)
 
-    build_cuda_file(op_cuda ${CMAKE_SOURCE_DIR}/include/op_cuda.cu)
+    # build_cuda_file(op_cuda ${CMAKE_SOURCE_DIR}/include/op_cuda.cu)
 
     add_cuda_test(cuda_allocator_test cuda/cuda_allocator_test.cpp)
     add_cuda_test(cuda_op_rmsnorm_test cuda/cuda_op_rmsnorm_test.cpp)

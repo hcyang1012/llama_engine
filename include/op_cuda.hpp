@@ -292,7 +292,7 @@ class MultiAttention {
                       const TransformerConfig& config, RunState<T>& run_state) {
     const size_t kNumHeads = config.NumHeads();
     const size_t kNumKVHeads = config.NumKVHeads();
-    const size_t kKVMul = kNumKVHeads / kNumHeads;
+    const size_t kKVMul = config.KVMul();
     const size_t kInputEmbedDim = config.Dim();
     const size_t kSeqLen = config.SeqLen();
     const size_t kHiddenDim = config.HiddenDim();
@@ -314,7 +314,7 @@ class MultiAttention {
             K_layer.GetData()->GetBuffer()),  // key_cache_layer,
         static_cast<const float*>(
             V_layer.GetData()->GetBuffer()),  // value_cache_layer,
-        kInputEmbedDim,                       // kv_dim,
+        config.KVHeadDim(),                   // kv_dim,
         kKVMul,                               // kv_mul,
         kNumHeads,                            // num_heads,
         kInputEmbedDim / kNumHeads,           // head_size,

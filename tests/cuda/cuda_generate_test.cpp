@@ -8,7 +8,7 @@
 #include "tokenizer.hpp"
 #include "transformer.hpp"
 #include "weights.hpp"
-class GenerateTest : public ::testing::Test {
+class CUDAGenerateTest : public ::testing::Test {
  protected:
   void SetUp() override {}
 
@@ -32,7 +32,7 @@ class GenerateTest : public ::testing::Test {
       std::make_unique<llama::Llama2<float>>(llama2_config);
 };
 
-TEST_F(GenerateTest, Test) {
+TEST_F(CUDAGenerateTest, Test) {
   const std::string kPrompt = "One day, Lily met a Shoggoth";
   // Reference Forward Stage
   float *ref_logits = nullptr;

@@ -6,7 +6,7 @@
 #include <tests/test_utility.hpp>
 
 #include "encoder.hpp"
-class ForwardTest : public ::testing::Test {
+class CUDAForwardTest : public ::testing::Test {
  protected:
   void SetUp() override {}
 
@@ -19,7 +19,7 @@ class ForwardTest : public ::testing::Test {
   const std::string kTokenizerBinPath = "tokenizer.bin";
 };
 
-TEST_F(ForwardTest, Test) {
+TEST_F(CUDAForwardTest, Test) {
   const std::string kPrompt = "Who are you?";
   // Reference Forward Stage
   float *ref_logits = nullptr;
