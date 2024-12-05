@@ -11,6 +11,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glog)
 
+# Download json lib from https://raw.githubusercontent.com/nlohmann/json/refs/heads/develop/single_include/nlohmann/json.hpp to 3rdparty/json/json.hpp
+file(DOWNLOAD 
+    https://raw.githubusercontent.com/nlohmann/json/refs/heads/develop/single_include/nlohmann/json.hpp 
+    ${CMAKE_CURRENT_BINARY_DIR}/download_deps/json/json.hpp
+)
+
 
 set(CMAKE_CXX_STANDARD 17)
 set(LLAMA2_LIB_SOURCES 
@@ -58,7 +64,7 @@ if(USE_CUDA)
 else()
     set(LINK_LIBS ${DEFAULT_LINK_LIBS})
 endif()
-target_include_directories(llama2_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(llama2_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/download_deps/)
 target_link_libraries(llama2_cpp ${LINK_LIBS})
 
 
@@ -69,7 +75,7 @@ if(USE_CUDA)
 else()
     set(LINK_LIBS ${DEFAULT_LINK_LIBS})
 endif()
-target_include_directories(llama3_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(llama3_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/download_deps/)
 target_link_libraries(llama3_cpp ${LINK_LIBS})
 
 

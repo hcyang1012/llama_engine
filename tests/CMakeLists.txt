@@ -18,6 +18,7 @@ set(TEST_INCLUDE_PATH
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/tests
+    ${CMAKE_BINARY_DIR}/download_deps
 )
 
 set(TEST_DEP_LIBS

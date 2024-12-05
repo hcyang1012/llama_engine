@@ -27,8 +27,8 @@
 #include <sampler.hpp>
 #include <tensor.hpp>
 #include <tokenizer.hpp>
+#include <tracer.hpp>
 #include <weights.hpp>
-
 // Third-party Headers
 
 namespace llama {
@@ -74,8 +74,19 @@ class Transformer {
     int next;
     bool is_first = true;
     auto start_time = std::chrono::high_resolution_clock::now();
+
+    std::string state = "";
     while (pos < steps) {
+      if (pos < prompt_tokens.size() - 1) {
+        state = "Prefill";
+      } else {
+        state = "Generation";
+      }
+      auto &trace_work =
+          Tracer::GetInstance().start_work("Forward::" + state, 0);
       auto logits = Forward(token, pos);
+      trace_work.stop();
+
       if (pos < prompt_tokens.size() - 1) {
         // Prefill stage
         next = prompt_tokens[pos + 1];
@@ -109,6 +120,7 @@ class Transformer {
                   << (pos - 1) / (double)(duration.count() / 1e6) << std::endl;
       }
     }
+    Tracer::GetInstance().to_json("trace.json");
     return ss.str();
   }
 
