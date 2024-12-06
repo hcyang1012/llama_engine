@@ -68,11 +68,7 @@ TEST_F(CUDARmsNormTest, RmsNormTest) {
       expected_o.data(), static_cast<const float*>(x_->GetData()->GetBuffer()),
       static_cast<const float*>(weight_->GetData()->GetBuffer()), kSize);
 
-  auto out_buffer_host =
-      llama::Tensor<float>(actual.GetShape(), llama::DeviceType::CPU);
-  llama::DeviceFactory::GetDevice(llama::DeviceType::CUDA)
-      .GetMemcpy()
-      .Copy(*(out_buffer_host.GetData()), *(actual.GetData()));
+  auto out_buffer_host = actual.Dump();
   auto out_buffer_host_ptr =
       static_cast<float*>(out_buffer_host.GetData()->GetBuffer());
   bool equal = true;

@@ -20,8 +20,13 @@
 
 #include <cub/cub.cuh>
 
+// CUDA Headers
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+
+// For NVIDIA Transformer Engine
+#include <transformer_engine/rmsnorm.h>
+#include <transformer_engine/transformer_engine.h>
 
 namespace llama {
 namespace CudaOps {
@@ -70,9 +75,113 @@ __global__ void rmsnorm_kernel(const float* x, const float* weight,
 void LaunchRmsNormKernel(const float* x, const float* weight, size_t size,
                          float* o, cudaStream_t stream = nullptr) {
   const auto elementsPerThread = IDivCeil(size, kNumThreadsLarge);
+#if 0
   rmsnorm_kernel<<<1, kNumThreadsLarge>>>(x, weight, size, o,
                                           elementsPerThread);
   cudaDeviceSynchronize();
+#else
+  constexpr size_t kBatch = 1;
+  auto build_nvte_tensor = [](const float* dptr, std::vector<size_t> shape,
+                              NVTEDType dtype) {
+    NVTEShape nvte_shape{shape.data(), shape.size()};
+    return nvte_create_tensor(const_cast<float*>(dptr), nvte_shape, dtype,
+                              nullptr, nullptr, nullptr);
+  };
+
+  auto product = [](const NVTEShape& shape) {
+    size_t ret = 1;
+    for (size_t i = 0; i < shape.ndim; ++i) {
+      ret *= shape.data[i];
+    }
+    return ret;
+  };
+
+  auto build_nvte_tensor2 = [](const float* dptr, NVTEShape shape,
+                               NVTEDType dtype) {
+    return nvte_create_tensor(const_cast<float*>(dptr), shape, dtype, nullptr,
+                              nullptr, nullptr);
+  };
+
+  auto get_typesize = [](NVTEDType dtype) {
+    switch (dtype) {
+      /**
+       kNVTEByte = 0,
+      kNVTEInt32 = 1,
+      kNVTEInt64 = 2,
+      kNVTEFloat32 = 3,
+      kNVTEFloat16 = 4,
+      kNVTEBFloat16 = 5,
+      kNVTEFloat8E4M3 = 6,
+      kNVTEFloat8E5M2 = 7,
+      **/
+      case NVTEDType::kNVTEByte:
+        return 1;
+      case NVTEDType::kNVTEInt32:
+        return 4;
+      case NVTEDType::kNVTEInt64:
+        return 8;
+      case NVTEDType::kNVTEFloat32:
+        return 4;
+      case NVTEDType::kNVTEFloat16:
+        return 2;
+      case NVTEDType::kNVTEBFloat16:
+        return 2;
+      default:
+        throw std::runtime_error("Unsupported data type");
+    }
+  };
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, 0);
+  auto input = build_nvte_tensor(x, {kBatch, size}, NVTEDType::kNVTEFloat32);
+  auto gamma = build_nvte_tensor(weight, {size}, NVTEDType::kNVTEFloat32);
+  auto z = build_nvte_tensor(o, {kBatch, size}, NVTEDType::kNVTEFloat32);
+  float* rsigma_dptr = nullptr;
+  cudaMalloc(&rsigma_dptr, kBatch * sizeof(float));
+  cudaMemset(rsigma_dptr, 0, kBatch * sizeof(float));
+  auto rsigma =
+      build_nvte_tensor(rsigma_dptr, {kBatch}, NVTEDType::kNVTEFloat32);
+  auto workspace = build_nvte_tensor(nullptr, {}, NVTEDType::kNVTEFloat32);
+  auto barrier = build_nvte_tensor(nullptr, {}, NVTEDType::kNVTEFloat32);
+  constexpr float epsilon = 1e-5;
+
+  // As the workspace and barrier tensors are empty, this function will
+  // only set the shape and type of the workspace and barrier tensors to
+  // the required values.
+  nvte_rmsnorm_fwd(input, gamma, epsilon, z, rsigma, 0,
+                   prop.multiProcessorCount, workspace, barrier);
+  auto workspace_shape = nvte_tensor_shape(workspace);
+  auto workspace_dtype = nvte_tensor_type(workspace);
+  float* workspace_dptr;
+  cudaMalloc(&workspace_dptr,
+             product(workspace_shape) * get_typesize(workspace_dtype));
+
+  workspace =
+      build_nvte_tensor2(workspace_dptr, workspace_shape, workspace_dtype);
+
+  auto barrier_shape = nvte_tensor_shape(barrier);
+  auto barrier_dtype = nvte_tensor_type(barrier);
+  float* barrier_dptr;
+  cudaMalloc(&barrier_dptr,
+             product(barrier_shape) * get_typesize(barrier_dtype));
+  barrier = build_nvte_tensor2(barrier_dptr, barrier_shape, barrier_dtype);
+
+  // Call the function again with the workspace and barrier tensors set to
+  // the required values. This time the operation will be performed.
+  nvte_rmsnorm_fwd(input, gamma, epsilon, z, rsigma, 0,
+                   prop.multiProcessorCount, workspace, barrier);
+  cudaDeviceSynchronize();
+
+  nvte_destroy_tensor(input);
+  nvte_destroy_tensor(gamma);
+  nvte_destroy_tensor(z);
+  nvte_destroy_tensor(rsigma);
+  nvte_destroy_tensor(workspace);
+  nvte_destroy_tensor(barrier);
+
+  cudaFree(rsigma_dptr);
+  cudaFree(workspace_dptr);
+  cudaFree(barrier_dptr);
+#endif
 }
 
 //------------------------------------------------------------------------------
