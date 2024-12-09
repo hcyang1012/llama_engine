@@ -65,6 +65,18 @@ class Shape {
     return *this;
   }
 
+  bool operator==(const Shape &other) const {
+    if (kRank != other.kRank) {
+      return false;
+    }
+    for (size_t i = 0; i < kRank; i++) {
+      if (dims[i] != other.dims[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
  private:
   std::vector<size_t> dims = {};
   size_t kRank = 0;
@@ -238,15 +250,3 @@ std::ostream &operator<<(std::ostream &os, const llama::Shape &shape) {
 }
 
 }  // namespace llama
-
-bool operator==(const llama::Shape &lhs, const llama::Shape &rhs) {
-  if (lhs.GetRank() != rhs.GetRank()) {
-    return false;
-  }
-  for (size_t i = 0; i < lhs.GetRank(); i++) {
-    if (lhs[i] != rhs[i]) {
-      return false;
-    }
-  }
-  return true;
-}

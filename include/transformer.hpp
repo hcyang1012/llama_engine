@@ -74,7 +74,15 @@ class Transformer {
     int next;
     bool is_first = true;
     auto start_time = std::chrono::high_resolution_clock::now();
-    while (pos < steps) {
+    const size_t kActualSteps =
+        steps == 0 ? config_.SeqLen()
+                   : std::min(steps, static_cast<size_t>(config_.SeqLen()));
+    if (kActualSteps != steps) {
+      std::cout << "Warning: steps is different from the maximum sequence "
+                   "length. Generating for "
+                << kActualSteps << " steps." << std::endl;
+    }
+    while (pos < kActualSteps) {
       auto logits = Forward(token, pos);
       if (pos < prompt_tokens.size() - 1) {
         // Prefill stage
@@ -86,6 +94,10 @@ class Transformer {
       pos++;
 
       if (next == special_tokens_.GetToken(SpecialTokens::Idx::IDX_BOS_01)) {
+        break;
+      }
+
+      if (next == special_tokens_.GetToken(SpecialTokens::Idx::IDX_EOT_ID_07)) {
         break;
       }
 

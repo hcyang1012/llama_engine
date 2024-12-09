@@ -62,6 +62,18 @@ target_include_directories(llama2_cpp PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(llama2_cpp ${LINK_LIBS})
 
 
+# For Python Bindings
+find_package(pybind11 REQUIRED)
+add_library(llama_engine MODULE ${CMAKE_SOURCE_DIR}/src/llama_python.cpp)
+if(USE_CUDA)
+    append_cuda_deps(llama_engine)
+else()
+    set(LINK_LIBS ${DEFAULT_LINK_LIBS})
+endif()
+target_include_directories(llama_engine PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(llama_engine ${LINK_LIBS} pybind11::module)
+
+
 
 add_executable(llama3_cpp ${CMAKE_SOURCE_DIR}/llama3.cpp)
 if(USE_CUDA)
