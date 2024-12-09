@@ -55,7 +55,7 @@ class SpecialTokensLlama2 : public SpecialTokens {
       case Idx::IDX_EOS_02:
         return 2;
       default:
-        throw std::runtime_error("Invalid special token index.");
+        return 0;
     }
   }
 };
